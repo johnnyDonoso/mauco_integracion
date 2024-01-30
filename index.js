@@ -203,162 +203,94 @@ function getComunaManager(idComuna, comunas){
     });
   };
 
-function parseOrder(cliente, guiaDespacho, comunas){
+function parseOrder(cliente, guiaDespacho, comunaRealCliente){
     return new Promise((resolve, reject) => {
-        var comuna_to_return = ''
-        
-        comuna_to_return = getComunaManager(cliente.comuna, comunas).then(result => {
-            return result
-        });
-  
-        if (comuna_to_return != '') {
-            resolve(comuna_to_return);} 
+        var items_guia = []
+
+        for (i = 0; i < guiaDespacho.detalles.length; i++) {
+            var new_item = 
+            {
+                "code": guiaDespacho.detalles[i].docdetnum,
+                "description": guiaDespacho.detalles[i].descripcion,
+                "units": guiaDespacho.detalles[i].cant,
+                "units_1": guiaDespacho.detalles[i].cant,
+                "units_2": null,
+                "units_3": null
+            }
+            items_guia.push(new_item)
+        }
+
+        var orderToReturn = JSON.stringify({
+            "clients": [
+                {
+                "code": cliente.num_cliente,
+                "address": guiaDespacho.dire_cliente,
+                "reference": "",
+                "city": comunaRealCliente,
+                "country": "Chile",
+                "lat": null,
+                "lng": null,
+                "name": cliente.razon_social,
+                "client_name": cliente.razon_social,
+                "client_code": null,
+                "address_type": "",
+                "contact_name": cliente.nombre_fantasia,
+                "contact_phone": cliente.telefono_contacto,
+                "contact_email": cliente.mail_contacto,
+                "additional_contact_name":"",
+                "additional_contact_phone":"",
+                "additional_contact_email": "",
+                "start_contact_name":"",
+                "start_contact_phone":"",
+                "start_contact_email": "",
+                "near_contact_name":"",
+                "near_contact_phone":"",
+                "near_contact_email": "",
+                "delivered_contact_name": cliente.nombre_fantasia,
+                "delivered_contact_phone": cliente.telefono_contacto,
+                "delivered_contact_email": cliente.mail_contacto,
+                "service_time": 15,
+                "sales_zone_code":"?",
+                "time_windows": [
+                    {
+                    "start": '07:00:',//guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[0]+':', //07:00: formato
+                    "end": '18:00:'//guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[1]+':'
+                    }
+                ],
+                "tags": null,
+                "orders": [
+                    {
+                    "code": guiaDespacho.folio,
+                    "alt_code": "996",
+                    "description": "",
+                    "category": "Delivery",
+                    "units_1": null,
+                    "units_2": null,
+                    "units_3": null,
+                    "position": 1,
+                    "delivery_date": guiaDespacho.fecha_ven,
+                    "priority": 0,
+                    "custom_1": null,
+                    "custom_2": null,
+                    "custom_3": null,
+                    "custom_4": null,
+                    "custom_5": null,
+                    "supplier_code": "Mauco",
+                    "supplier_name": "Mauco",
+                    "deploy_date": guiaDespacho.fecha_ven,
+                    "items": items_guia,
+                    "pickups":[]
+                    }
+                ]
+                }
+            ]
+        })
+
+        if (orderToReturn != null) {
+            resolve(orderToReturn);} 
         else {
             reject(Error("It broke"));}
     });
-
-    // var items_guia = []
-    // for (i = 0; i < guiaDespacho.detalles.length; i++) {
-    //     var new_item = 
-    //     {
-    //         "code": guiaDespacho.detalles[i].docdetnum,
-    //         "description": guiaDespacho.detalles[i].descripcion,
-    //         "units": guiaDespacho.detalles[i].cant,
-    //         "units_1": guiaDespacho.detalles[i].cant,
-    //         "units_2": null,
-    //         "units_3": null
-    //     }
-    //     items_guia.push(new_item)
-    // }
-
-    // var orderToReturn = JSON.stringify({
-    //     "clients": [
-    //         {
-    //         "code": "2536",
-    //         "address": guiaDespacho.dire_cliente,
-    //         "reference": "",
-    //         "city": comunaRealCliente,
-    //         "country": "Chile",
-    //         "lat": null,
-    //         "lng": null,
-    //         "name": cliente.razon_social,
-    //         "client_name": cliente.razon_social,
-    //         "client_code": null,
-    //         "address_type": "",
-    //         "contact_name": cliente.nombre_fantasia,
-    //         "contact_phone": cliente.telefono_contacto,
-    //         "contact_email": cliente.mail_contacto,
-    //         "additional_contact_name":"",
-    //         "additional_contact_phone":"",
-    //         "additional_contact_email": "",
-    //         "start_contact_name":"",
-    //         "start_contact_phone":"",
-    //         "start_contact_email": "",
-    //         "near_contact_name":"",
-    //         "near_contact_phone":"",
-    //         "near_contact_email": "",
-    //         "delivered_contact_name": cliente.nombre_fantasia,
-    //         "delivered_contact_phone": cliente.telefono_contacto,
-    //         "delivered_contact_email": cliente.mail_contacto,
-    //         "service_time": 15,
-    //         "sales_zone_code":"?",
-    //         "time_windows": [
-    //             {
-    //             "start": guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[0]+':', //07:00: formato
-    //             "end": guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[1]+':'
-    //             }
-    //         ],
-    //         "tags": null,
-    //         "orders": [
-    //             {
-    //             "code": "26",
-    //             "alt_code": "996",
-    //             "description": "",
-    //             "category": "Delivery",
-    //             "units_1": null,
-    //             "units_2": null,
-    //             "units_3": null,
-    //             "position": 1,
-    //             "delivery_date": guiaDespacho.fecha_ven,
-    //             "priority": 0,
-    //             "custom_1": null,
-    //             "custom_2": null,
-    //             "custom_3": null,
-    //             "custom_4": null,
-    //             "custom_5": null,
-    //             "supplier_code": "Mauco",
-    //             "supplier_name": "Mauco",
-    //             "deploy_date": guiaDespacho.fecha_ven,
-    //             "items": items_guia,
-    //             "pickups":[]
-    //             }
-    //         ]
-    //         },
-    //         {
-    //             "code": "2564",
-    //             "address": "UNO ORIENTE 8262",
-    //             "reference": "",
-    //             "city": "La Granja",
-    //             "country": "Chile",
-    //             "lat": null,
-    //             "lng": null,
-    //             "name": cliente.razon_social,
-    //             "client_name": cliente.razon_social,
-    //             "client_code": null,
-    //             "address_type": "",
-    //             "contact_name": cliente.nombre_fantasia,
-    //             "contact_phone": cliente.telefono_contacto,
-    //             "contact_email": cliente.mail_contacto,
-    //             "additional_contact_name":"",
-    //             "additional_contact_phone":"",
-    //             "additional_contact_email": "",
-    //             "start_contact_name":"",
-    //             "start_contact_phone":"",
-    //             "start_contact_email": "",
-    //             "near_contact_name":"",
-    //             "near_contact_phone":"",
-    //             "near_contact_email": "",
-    //             "delivered_contact_name": cliente.nombre_fantasia,
-    //             "delivered_contact_phone": cliente.telefono_contacto,
-    //             "delivered_contact_email": cliente.mail_contacto,
-    //             "service_time": 15,
-    //             "sales_zone_code":"?",
-    //             "time_windows": [
-    //                 {
-    //                 "start": guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[0]+':', //07:00: formato
-    //                 "end": guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[1]+':'
-    //                 }
-    //             ],
-    //             "tags": null,
-    //             "orders": [
-    //                 {
-    //                 "code": "28",
-    //                 "alt_code": "996",
-    //                 "description": "",
-    //                 "category": "Delivery",
-    //                 "units_1": null,
-    //                 "units_2": null,
-    //                 "units_3": null,
-    //                 "position": 1,
-    //                 "delivery_date": guiaDespacho.fecha_ven,
-    //                 "priority": 0,
-    //                 "custom_1": null,
-    //                 "custom_2": null,
-    //                 "custom_3": null,
-    //                 "custom_4": null,
-    //                 "custom_5": null,
-    //                 "supplier_code": "Mauco",
-    //                 "supplier_name": "Mauco",
-    //                 "deploy_date": guiaDespacho.fecha_ven,
-    //                 "items": items_guia,
-    //                 "pickups":[]
-    //                 }
-    //             ]
-    //         }
-    //     ]
-    // })
-
-    //return orderToReturn
         
 }
 
@@ -372,30 +304,53 @@ async function installApp(){
     const comunas = await getComuna()
     console.log('comunas obtenidas')
 
-    console.log(documentos.length)
-
     documentos.forEach(async (obj,index) =>{
-        var cliente = await getCliente(obj.rut_cliente)
-        var comunaCliente = await getComunaManager(cliente.comuna,comunas)
-        console.log(comunaCliente)
+        if(index <= 5){
+            var cliente = await getCliente(obj.rut_cliente)
+            var comunaCliente = await getComunaManager(cliente.comuna,comunas)
+            var order = await parseOrder(cliente,obj,comunaCliente)
+
+            console.log(order)
+
+            postOrderPrueba = await postOrder(order)
+            console.log('conexión DrivIn OK')
+            console.log(postOrderPrueba)
+        }
     })
-
-    // for (i = 0; i < documentos.length; i++) {
-    //     //if(documentos[i].folio === 86283){// || documentos[i].folio === 86284 || documentos[i].folio === 86285 ){
-    //     //console.log(documentos[i])
-    //     console.log(i)
-    //     var cliente = await getCliente(documentos[i].rut_cliente)
-    //     //var comunaRealCliente = await getComunaManager(cliente.comuna, comunas)
-    //     await parseOrder(cliente, documentos[i], comunas)
-    //     //console.log(cliente, documentos[i])
-
-    //     //console.log(order)
-    //     //postOrderPrueba = await postOrder(order)
-    //     //console.log('conexión DrivIn OK')
-    //     //console.log(postOrderPrueba)
-    //     //}
-    // } 
 
 }
 
 installApp()
+//delete orders
+
+// function deleteOrder(num_order){
+//     return new Promise((resolve, reject) => { //
+//         request.delete(
+//             'https://external.driv.in/api/external/v2/orders/'+num_order,
+//             {
+//                 headers:{
+//                     "X-API-Key" : environment.apiKeyDrivIn,
+//                     'Content-Type': 'application/json'
+//                 }
+//             },
+//             function (error, response, body) {
+//                 if (!error && response.statusCode == 200) {
+//                     resolve(body)
+//                 }
+//                 else{
+//                     reject(body)
+//                 }
+//             }
+//         )
+//     }); 
+// }
+
+// async function delete_orders(){
+//     var delete_order = await deleteOrder('86256')
+//     console.log(delete_order)
+// }
+
+// delete_orders()
+
+
+
