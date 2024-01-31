@@ -89,7 +89,7 @@ function getCliente(rutCliente){
                     resolve(JSON.parse(body).data[0])
                 }
                 else{
-                    reject(body)
+                    reject(null)
                 }
             }
         )
@@ -329,17 +329,36 @@ async function installApp(){
     console.log('comunas obtenidas')
 
     documentos.forEach(async (obj,index) =>{
-        console.log('Obteniendo Cliente: '+obj.rut_cliente)
-        var cliente = await getCliente(obj.rut_cliente)
-        var comunaCliente = await getComunaManager(cliente.comuna,comunas)
-
-        console.log('Parseando orden: '+ obj.folio)
-        var order = await parseOrder(cliente,obj,comunaCliente)
-
-        postOrderPrueba = await postOrder(order)
-        console.log('orden: '+ obj.folio+' ingresada')
+        if(obj.estado == 'C'){
+            try{
+                if(obj.rut_cliente == null){
+                    obj.rut_cliente = environment.RutEmpresa
+                }
+                console.log('Obteniendo Cliente: '+obj.rut_cliente)
+                var cliente = await getCliente(obj.rut_cliente)
+                var comunaCliente = await getComunaManager(cliente.comuna,comunas)
+    
+                console.log('Parseando orden: '+ obj.folio)
+                var order = await parseOrder(cliente,obj,comunaCliente)
+                postOrderPrueba = await postOrder(order)
+                console.log('orden: '+ obj.folio+' ingresada')
+            }
+            catch(e){
+                if (e == null) { console.log('order: '+obj.folio+' no se pudo encontrar cliente')}
+                //else if (e instanceof RangeError) {}// sentencias para manejar excepciones RangeError
+                else {
+                   console.log(e); 
+                }
+            }
+        }
+        else{
+            //nothing
+        }
+        
+        
     })
 
+    console.log('proceso finalizado')
 }
 
 installApp()
