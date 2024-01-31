@@ -224,7 +224,7 @@ function parseOrder(cliente, guiaDespacho, comunaRealCliente){
             "clients": [
                 {
                 "code": cliente.num_cliente,
-                "address": guiaDespacho.dire_cliente,
+                "address": guiaDespacho.dire_cliente, //descrip_direcc_cliente
                 "reference": "",
                 "city": comunaRealCliente,
                 "country": "Chile",
@@ -294,33 +294,57 @@ function parseOrder(cliente, guiaDespacho, comunaRealCliente){
         
 }
 
+function getToday(){
+    const date = new Date();
+
+    var day = date.getDate();
+    var month = date.getMonth() + 1;
+    const year = date.getFullYear();
+
+    if (day <= 10){
+        day = '0'+day.toString();
+    }
+
+    if (month <= 10){
+        month = '0'+month.toString();
+    }
+
+    var currentDate = year.toString()+month.toString()+day.toString();
+
+    return currentDate
+}
+
 async function installApp(){
-    const token = await Authorization()
+    console.log('Autorización Manager')
+    const token = await Authorization() //Autenticación API Manager+
     tokenManager = token
 
-    const documentos = await getGuiasDespacho('20240119', '20240119')
+    var currentDate = getToday() //obtenemos fecha de hoy
+    console.log(currentDate)
+
+    const documentos = await getGuiasDespacho(currentDate, currentDate) //obtenemos ordenes de despacho con la fecha de hoy
     console.log('conexión Manager OK')
 
-    const comunas = await getComuna()
+    const comunas = await getComuna() //obtenemos información sobre las comunas
     console.log('comunas obtenidas')
 
     documentos.forEach(async (obj,index) =>{
-        if(index <= 5){
-            var cliente = await getCliente(obj.rut_cliente)
-            var comunaCliente = await getComunaManager(cliente.comuna,comunas)
-            var order = await parseOrder(cliente,obj,comunaCliente)
+        console.log('Obteniendo Cliente: '+obj.rut_cliente)
+        var cliente = await getCliente(obj.rut_cliente)
+        var comunaCliente = await getComunaManager(cliente.comuna,comunas)
 
-            console.log(order)
+        console.log('Parseando orden: '+ obj.folio)
+        var order = await parseOrder(cliente,obj,comunaCliente)
 
-            postOrderPrueba = await postOrder(order)
-            console.log('conexión DrivIn OK')
-            console.log(postOrderPrueba)
-        }
+        postOrderPrueba = await postOrder(order)
+        console.log('orden: '+ obj.folio+' ingresada')
     })
 
 }
 
 installApp()
+
+
 //delete orders
 
 // function deleteOrder(num_order){
@@ -346,7 +370,7 @@ installApp()
 // }
 
 // async function delete_orders(){
-//     var delete_order = await deleteOrder('86256')
+//     var delete_order = await deleteOrder('86262')//,,,,,,,
 //     console.log(delete_order)
 // }
 
