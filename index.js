@@ -2,14 +2,6 @@ var request = require('request');
 const { environment } = require('./src/environments');
 const { Client } = require('pg');
 
-const client = new Client({
-    host: 'localhost',
-    user: 'postgres',
-    database: 'postgres',
-    password: 'postgres',
-    port: 5432,
-});
-
 var tokenManager = ''
 
 function Authorization(){
@@ -23,27 +15,6 @@ function Authorization(){
             function (error, response, body) {
                 if (!error && response.statusCode == 200) {
                     resolve(body.auth_token)
-                }
-                else{
-                    reject(body)
-                }
-            }
-        )
-    });
-}
-
-function getComprobantes(dateIni, dateFin){
-    return new Promise((resolve, reject) => {
-        request.get(
-            environment.ApiManagerUrl+'/api/comprobantes/'+environment.RutEmpresa+'/?df='+dateIni+'&dt='+dateFin,
-            {
-                headers:{
-                    "Authorization" : "Token "+tokenManager
-                }
-            },
-            function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    resolve(JSON.parse(body).data)
                 }
                 else{
                     reject(body)
@@ -78,7 +49,7 @@ function getGuiasDespacho(dateIni, dateFin){
 function getCliente(rutCliente){
     return new Promise((resolve, reject) => { //
         request.get(
-            environment.ApiManagerUrl+'/api/clients/'+environment.RutEmpresa+'/'+rutCliente+'/?contacts=0&con_credito=0',
+            environment.ApiManagerUrl+'/api/clients/'+environment.RutEmpresa+'/'+rutCliente+'/?direcciones=1',
             {
                 headers:{
                     "Authorization" : "Token "+tokenManager
@@ -90,72 +61,6 @@ function getCliente(rutCliente){
                 }
                 else{
                     reject(null)
-                }
-            }
-        )
-    });
-}
-
-//obtener Comuna
-function getComuna(idComuna){
-    return new Promise((resolve, reject) => { //
-        request.get(
-            environment.ApiManagerUrl+'/api/comunas/',
-            {
-                headers:{
-                    "Authorization" : "Token "+tokenManager
-                }
-            },
-            function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    resolve(JSON.parse(body).data)
-                }
-                else{
-                    reject(body)
-                }
-            }
-        )
-    });
-}
-
-//obtener Ciudad
-function getCiudad(idCiudad){
-    return new Promise((resolve, reject) => { //
-        request.get(
-            environment.ApiManagerUrl+'/api/ciudades/',
-            {
-                headers:{
-                    "Authorization" : "Token "+tokenManager
-                }
-            },
-            function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    resolve(JSON.parse(body).data)
-                }
-                else{
-                    reject(body)
-                }
-            }
-        )
-    });
-}
-
-//https://external.driv.in/api/external/v2/schemas
-function getEsquemas(){
-    return new Promise((resolve, reject) => { //
-        request.get(
-            'https://external.driv.in/api/external/v2/schemas',
-            {
-                headers:{
-                    'X-API-Key': environment.apiKeyDrivIn
-                }
-            },
-            function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    resolve(JSON.parse(body))
-                }
-                else{
-                    reject(body)
                 }
             }
         )
@@ -186,24 +91,7 @@ function postOrder(order){
     }); 
 }
 
-function getComunaManager(idComuna, comunas){
-    return new Promise((resolve, reject) => {
-        var comuna_to_return = ''
-        
-        for (i = 0; i < comunas.length; i++) {
-            if(comunas[i].code == idComuna){
-                comuna_to_return = comunas[i].name
-            }
-        }
-  
-        if (comuna_to_return != '') {
-            resolve(comuna_to_return);} 
-        else {
-            reject(Error("It broke"));}
-    });
-  };
-
-function parseOrder(cliente, guiaDespacho, comunaRealCliente){
+function parseOrder(cliente, guiaDespacho){
     return new Promise((resolve, reject) => {
         var items_guia = []
 
@@ -220,13 +108,31 @@ function parseOrder(cliente, guiaDespacho, comunaRealCliente){
             items_guia.push(new_item)
         }
 
+        //ventana horaria
+        var ventana_horario = []
+
+        var nueva_ventana = {
+            "start": '09:00:',
+            "end": '17:00:'
+        }
+        ventana_horario.push(nueva_ventana)
+
+        // try{
+        //     var nueva_ventana = {
+        //             "start": guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[0]+':',
+        //             "end": guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[1]+':'
+        //     }
+        //     ventana_horario.push(nueva_ventana)
+        // }
+        // catch(e){ }
+
         var orderToReturn = JSON.stringify({
             "clients": [
                 {
-                "code": cliente.num_cliente,
-                "address": guiaDespacho.dire_cliente, //descrip_direcc_cliente
-                "reference": "",
-                "city": comunaRealCliente,
+                "code": cliente.num_cliente.toString()+guiaDespacho.id_direccion.toString(),
+                "address": guiaDespacho.dire_cliente_larga, //descrip_direcc_cliente
+                "reference": guiaDespacho.dire_cliente,
+                "city": guiaDespacho.comuna_cliente,
                 "country": "Chile",
                 "lat": null,
                 "lng": null,
@@ -251,12 +157,7 @@ function parseOrder(cliente, guiaDespacho, comunaRealCliente){
                 "delivered_contact_email": cliente.mail_contacto,
                 "service_time": 15,
                 "sales_zone_code":"?",
-                "time_windows": [
-                    {
-                    "start": '07:00:',//guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[0]+':', //07:00: formato
-                    "end": '18:00:'//guiaDespacho.glosa_enc.split("\r\n")[0].split("/")[1]+':'
-                    }
-                ],
+                "time_windows": ventana_horario,
                 "tags": null,
                 "orders": [
                     {
@@ -320,42 +221,45 @@ async function installApp(){
     tokenManager = token
 
     var currentDate = getToday() //obtenemos fecha de hoy
-    console.log(currentDate)
+    console.log('Obteniendo ÓRDENES del día: '+currentDate)
 
     const documentos = await getGuiasDespacho(currentDate, currentDate) //obtenemos ordenes de despacho con la fecha de hoy
     console.log('conexión Manager OK')
 
-    const comunas = await getComuna() //obtenemos información sobre las comunas
-    console.log('comunas obtenidas')
-
     documentos.forEach(async (obj,index) =>{
-        if(obj.estado == 'C'){
+
+        if(obj.rut_cliente == null){
+            obj.rut_cliente = environment.RutEmpresa
+        }
+
+        console.log('Obteniendo Cliente: '+obj.rut_cliente)
+        var cliente = await getCliente(obj.rut_cliente)
+
+        var direcciones = cliente.direcciones
+
+        direcciones.forEach(async (direccion, index) =>{
+            if(direccion.descripcion == obj.dire_cliente){
+                obj.dire_cliente_larga = direccion.direccion
+                obj.comuna_cliente = direccion.comuna
+                obj.region_cliente = direccion.region
+                obj.id_direccion = index
+            }
+        })
+
+        if(obj.region_cliente == 'Metropolitana de Santiago' && obj.estado == 'C'){
+            console.log('Parseando orden: '+ obj.folio)
+            var order = await parseOrder(cliente, obj)
+
             try{
-                if(obj.rut_cliente == null){
-                    obj.rut_cliente = environment.RutEmpresa
-                }
-                console.log('Obteniendo Cliente: '+obj.rut_cliente)
-                var cliente = await getCliente(obj.rut_cliente)
-                var comunaCliente = await getComunaManager(cliente.comuna,comunas)
-    
-                console.log('Parseando orden: '+ obj.folio)
-                var order = await parseOrder(cliente,obj,comunaCliente)
                 postOrderPrueba = await postOrder(order)
                 console.log('orden: '+ obj.folio+' ingresada')
             }
             catch(e){
-                if (e == null) { console.log('order: '+obj.folio+' no se pudo encontrar cliente')}
-                //else if (e instanceof RangeError) {}// sentencias para manejar excepciones RangeError
-                else {
-                   console.log(e); 
-                }
+                console.log(order)
+                //dirección ya existe
+                console.log('orden: '+obj.folio+' ya ingresada')
             }
         }
-        else{
-            //nothing
-        }
-        
-        
     })
 
     console.log('proceso finalizado')
@@ -389,7 +293,7 @@ installApp()
 // }
 
 // async function delete_orders(){
-//     var delete_order = await deleteOrder('86262')//,,,,,,,
+//     var delete_order = await deleteOrder('87265')//,,,,,,,
 //     console.log(delete_order)
 // }
 
