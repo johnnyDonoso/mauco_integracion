@@ -126,6 +126,17 @@ function parseOrder(cliente, guiaDespacho){
         // }
         // catch(e){ }
 
+        // "time_windows": [
+        //         {
+        //             "start": "07:00:",
+        //             "end": "12:00:"
+        //         },
+        //         {
+        //             "start": "13:00:",
+        //             "end": "17:00:"
+        //         }
+        //     ]
+
         var orderToReturn = JSON.stringify({
             "clients": [
                 {
@@ -216,6 +227,7 @@ function getToday(){
 }
 
 async function installApp(){
+    //AGREGAR BODEGA DEL ITEM
     console.log('Autorización Manager')
     const token = await Authorization() //Autenticación API Manager+
     tokenManager = token
