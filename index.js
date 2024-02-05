@@ -46,6 +46,28 @@ function getGuiasDespacho(dateIni, dateFin){
 }
 
 //obtener clientes
+function getBodegas(){
+    return new Promise((resolve, reject) => { //
+        request.get(
+            environment.ApiManagerUrl+'/api/offices/'+environment.RutEmpresa+'/',
+            {
+                headers:{
+                    "Authorization" : "Token "+tokenManager
+                }
+            },
+            function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    resolve(JSON.parse(body).data)
+                }
+                else{
+                    reject(null)
+                }
+            }
+        )
+    });
+}
+
+//obtener clientes
 function getCliente(rutCliente){
     return new Promise((resolve, reject) => { //
         request.get(
@@ -91,11 +113,20 @@ function postOrder(order){
     }); 
 }
 
-function parseOrder(cliente, guiaDespacho){
+function parseOrder(cliente, guiaDespacho, bodegas){
     return new Promise((resolve, reject) => {
         var items_guia = []
 
+        var custom_1 = '' //codigo + nombre de bodega
+
         for (i = 0; i < guiaDespacho.detalles.length; i++) {
+
+            bodegas.forEach(async (bodega, index) => {
+                if(bodega.codigo == guiaDespacho.detalles[i].bodega_item){
+                    custom_1 = bodega.codigo + '-' + bodega.name
+                }
+            })
+
             var new_item = 
             {
                 "code": guiaDespacho.detalles[i].docdetnum,
@@ -103,7 +134,10 @@ function parseOrder(cliente, guiaDespacho){
                 "units": guiaDespacho.detalles[i].cant,
                 "units_1": guiaDespacho.detalles[i].cant,
                 "units_2": null,
-                "units_3": null
+                "units_3": null,
+                "custom_1": null,
+                "custom_2": custom_1, //nombre bodega,
+                "custom_3": guiaDespacho.detalles[i].ubicacion_item //ubicacion bodega
             }
             items_guia.push(new_item)
         }
@@ -111,10 +145,13 @@ function parseOrder(cliente, guiaDespacho){
         //ventana horaria
         var ventana_horario = []
 
-        var nueva_ventana = {
-            "start": '09:00:',
-            "end": '17:00:'
-        }
+        var nueva_ventana = 
+            {
+                "start": "07:00",
+                "end": "17:00"
+            }
+            
+        
         ventana_horario.push(nueva_ventana)
 
         // try{
@@ -125,17 +162,6 @@ function parseOrder(cliente, guiaDespacho){
         //     ventana_horario.push(nueva_ventana)
         // }
         // catch(e){ }
-
-        // "time_windows": [
-        //         {
-        //             "start": "07:00:",
-        //             "end": "12:00:"
-        //         },
-        //         {
-        //             "start": "13:00:",
-        //             "end": "17:00:"
-        //         }
-        //     ]
 
         var orderToReturn = JSON.stringify({
             "clients": [
@@ -174,7 +200,7 @@ function parseOrder(cliente, guiaDespacho){
                     {
                     "code": guiaDespacho.folio,
                     "alt_code": "996",
-                    "description": "",
+                    "description": guiaDespacho.glosa_enc,
                     "category": "Delivery",
                     "units_1": null,
                     "units_2": null,
@@ -226,17 +252,27 @@ function getToday(){
     return currentDate
 }
 
+var contador_ordenes_ok = 0
+var contador_ordenes_failed = 0
+
 async function installApp(){
+    
     //AGREGAR BODEGA DEL ITEM
-    console.log('Autorización Manager')
+    //console.log('Autorización Manager')
     const token = await Authorization() //Autenticación API Manager+
     tokenManager = token
 
     var currentDate = getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
+    console.log('---')
 
     const documentos = await getGuiasDespacho(currentDate, currentDate) //obtenemos ordenes de despacho con la fecha de hoy
-    console.log('conexión Manager OK')
+    //console.log('conexión Manager OK')
+
+    const bodegas = await getBodegas()
+    //console.log('Bodegas obtenidas')
+
+    var largo_array = documentos.length
 
     documentos.forEach(async (obj,index) =>{
 
@@ -244,7 +280,7 @@ async function installApp(){
             obj.rut_cliente = environment.RutEmpresa
         }
 
-        console.log('Obteniendo Cliente: '+obj.rut_cliente)
+        //console.log('Obteniendo Cliente: '+obj.rut_cliente)
         var cliente = await getCliente(obj.rut_cliente)
 
         var direcciones = cliente.direcciones
@@ -259,26 +295,36 @@ async function installApp(){
         })
 
         if(obj.region_cliente == 'Metropolitana de Santiago' && obj.estado == 'C'){
-            console.log('Parseando orden: '+ obj.folio)
-            var order = await parseOrder(cliente, obj)
+            //console.log('Parseando orden: '+ obj.folio)
+            var order = await parseOrder(cliente, obj, bodegas)
+            //console.log(order)
 
             try{
                 postOrderPrueba = await postOrder(order)
-                console.log('orden: '+ obj.folio+' ingresada')
+                //console.log('orden: '+ obj.folio+' ingresada')
+                contador_ordenes_ok = contador_ordenes_ok + 1
             }
             catch(e){
                 console.log(order)
                 //dirección ya existe
-                console.log('orden: '+obj.folio+' ya ingresada')
+                //console.log('orden: '+obj.folio+' ya ingresada')
+                contador_ordenes_failed = contador_ordenes_failed + 1 
+
             }
         }
+        
+        if(index == largo_array - 1){
+            console.log('ordenes_ok: '+ contador_ordenes_ok)
+            console.log('ordenes_failed: '+ contador_ordenes_failed) 
+        }
     })
-
-    console.log('proceso finalizado')
 }
 
-installApp()
+async function runApp(){
+    await installApp()
+}
 
+runApp()
 
 //delete orders
 
