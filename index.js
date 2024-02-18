@@ -67,6 +67,28 @@ function getBodegas(){
     });
 }
 
+//obtener items
+function getItems(){
+    return new Promise((resolve, reject) => { //
+        request.get(
+            environment.ApiManagerUrl+'/api/products-by-units/'+environment.RutEmpresa+'?buscar=',
+            {
+                headers:{
+                    "Authorization" : "Token "+tokenManager
+                }
+            },
+            function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    resolve(JSON.parse(body).data)
+                }
+                else{
+                    reject(null)
+                }
+            }
+        )
+    });
+}
+
 //obtener clientes
 function getCliente(rutCliente){
     return new Promise((resolve, reject) => { //
@@ -113,11 +135,13 @@ function postOrder(order){
     }); 
 }
 
-function parseOrder(cliente, guiaDespacho, bodegas){
+function parseOrder(cliente, guiaDespacho, bodegas, items){
     return new Promise((resolve, reject) => {
         var items_guia = []
 
         var custom_1 = '' //codigo + nombre de bodega
+
+        var peso_item = 0.0
 
         for (i = 0; i < guiaDespacho.detalles.length; i++) {
 
@@ -127,12 +151,20 @@ function parseOrder(cliente, guiaDespacho, bodegas){
                 }
             })
 
+            items.forEach(async (item, index) => {
+                if(item.codigo_prod == guiaDespacho.detalles[i].codigo){
+                    peso_item = item.peso
+                }
+            })
+
+            //console.log(guiaDespacho.detalles[i])
+
             var new_item = 
             {
                 "code": guiaDespacho.detalles[i].docdetnum,
                 "description": guiaDespacho.detalles[i].descripcion,
                 "units": guiaDespacho.detalles[i].cant,
-                "units_1": guiaDespacho.detalles[i].cant,
+                "units_1": Math.round(guiaDespacho.detalles[i].cant * peso_item),
                 "units_2": null,
                 "units_3": null,
                 "custom_1": null,
@@ -140,6 +172,8 @@ function parseOrder(cliente, guiaDespacho, bodegas){
                 "custom_3": guiaDespacho.detalles[i].ubicacion_item //ubicacion bodega
             }
             items_guia.push(new_item)
+
+            //console.log(new_item)
         }
 
         //ventana horaria
@@ -163,6 +197,8 @@ function parseOrder(cliente, guiaDespacho, bodegas){
         // }
         // catch(e){ }
 
+        //console.log(guiaDespacho.folio + '-' + cliente.num_cliente.toString()+guiaDespacho.id_direccion.toString())
+
         var orderToReturn = JSON.stringify({
             "clients": [
                 {
@@ -173,25 +209,25 @@ function parseOrder(cliente, guiaDespacho, bodegas){
                 "country": "Chile",
                 "lat": null,
                 "lng": null,
-                "name": cliente.razon_social,
-                "client_name": cliente.razon_social,
+                "name": cliente.nombre_fantasia,
+                "client_name": cliente.nombre_fantasia,
                 "client_code": null,
                 "address_type": "",
-                "contact_name": cliente.nombre_fantasia,
-                "contact_phone": cliente.telefono_contacto,
-                "contact_email": cliente.mail_contacto,
+                "contact_name": cliente.nombre_contacto_direccion,
+                "contact_phone": cliente.telefono_contacto_direccion,
+                "contact_email": cliente.email_contacto_direccion,
                 "additional_contact_name":"",
                 "additional_contact_phone":"",
                 "additional_contact_email": "",
-                "start_contact_name":"",
-                "start_contact_phone":"",
-                "start_contact_email": "",
+                "start_contact_name": cliente.nombre_contacto_direccion,
+                "start_contact_phone": cliente.telefono_contacto_direccion,
+                "start_contact_email": cliente.email_contacto_direccion,
                 "near_contact_name":"",
                 "near_contact_phone":"",
                 "near_contact_email": "",
-                "delivered_contact_name": cliente.nombre_fantasia,
-                "delivered_contact_phone": cliente.telefono_contacto,
-                "delivered_contact_email": cliente.mail_contacto,
+                "delivered_contact_name": cliente.nombre_contacto_direccion,
+                "delivered_contact_phone": cliente.telefono_contacto_direccion,
+                "delivered_contact_email": cliente.email_contacto_direccion,
                 "service_time": 15,
                 "sales_zone_code":"?",
                 "time_windows": ventana_horario,
@@ -261,6 +297,7 @@ async function installApp(){
     //console.log('Autorización Manager')
     const token = await Authorization() //Autenticación API Manager+
     tokenManager = token
+    //console.log(tokenManager)
 
     var currentDate = getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
@@ -271,6 +308,8 @@ async function installApp(){
 
     const bodegas = await getBodegas()
     //console.log('Bodegas obtenidas')
+
+    const items = await getItems()
 
     var largo_array = documentos.length
 
@@ -287,19 +326,26 @@ async function installApp(){
 
         direcciones.forEach(async (direccion, index) =>{
             if(direccion.descripcion == obj.dire_cliente){
+                //console.log(direccion)
                 obj.dire_cliente_larga = direccion.direccion
                 obj.comuna_cliente = direccion.comuna
                 obj.region_cliente = direccion.region
                 obj.id_direccion = index
+                cliente.nombre_contacto_direccion = direccion.atencion
+                cliente.email_contacto_direccion = direccion.emaildir
+                cliente.telefono_contacto_direccion = direccion.telefono
             }
         })
+        //console.log(obj.region_cliente +'-'+obj.comuna_cliente)
 
-        if(obj.region_cliente == 'Metropolitana de Santiago' && obj.estado == 'C'){
+        if( (obj.region_cliente == "Metropolitana de Santiago" || obj.region_cliente == "O'Higgins") && obj.estado == 'C'){
             //console.log('Parseando orden: '+ obj.folio)
-            var order = await parseOrder(cliente, obj, bodegas)
+            //console.log(obj)
+            var order = await parseOrder(cliente, obj, bodegas,items)
             //console.log(order)
 
             try{
+                
                 postOrderPrueba = await postOrder(order)
                 //console.log('orden: '+ obj.folio+' ingresada')
                 contador_ordenes_ok = contador_ordenes_ok + 1
