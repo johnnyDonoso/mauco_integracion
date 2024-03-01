@@ -111,11 +111,11 @@ function getCliente(rutCliente){
     });
 }
 
-function postOrder(order){
+function postOrder(order, code_bodega){
     //'https://external.driv.in/api/external/v2/orders?schema_code='+'584412'
     return new Promise((resolve, reject) => { //
         request.post(
-            'https://external.driv.in/api/external/v2/orders?schema_code=011',
+            'https://external.driv.in/api/external/v2/orders?schema_code='+code_bodega,
             {
                 headers:{
                     "X-API-Key" : environment.apiKeyDrivIn,
@@ -338,15 +338,53 @@ async function installApp(){
         })
         //console.log(obj.region_cliente +'-'+obj.comuna_cliente)
 
+        //console.log(obj.region_cliente)
+
         if( (obj.region_cliente == "Metropolitana de Santiago" || obj.region_cliente == "O'Higgins") && obj.estado == 'C'){
             //console.log('Parseando orden: '+ obj.folio)
             //console.log(obj)
             var order = await parseOrder(cliente, obj, bodegas,items)
-            //console.log(order)
 
             try{
-                
-                postOrderPrueba = await postOrder(order)
+                postOrderPrueba = await postOrder(order,'011')
+                //console.log('orden: '+ obj.folio+' ingresada')
+                contador_ordenes_ok = contador_ordenes_ok + 1
+            }
+            catch(e){
+                console.log(order)
+                //dirección ya existe
+                //console.log('orden: '+obj.folio+' ya ingresada')
+                contador_ordenes_failed = contador_ordenes_failed + 1 
+
+            }
+        }
+
+        if( obj.region_cliente == "Bío-Bío" && obj.estado == 'C'){
+            //console.log('Parseando orden: '+ obj.folio)
+            //console.log(obj)
+            var order = await parseOrder(cliente, obj, bodegas,items)
+
+            try{
+                postOrderPrueba = await postOrder(order,'08')
+                //console.log('orden: '+ obj.folio+' ingresada')
+                contador_ordenes_ok = contador_ordenes_ok + 1
+            }
+            catch(e){
+                console.log(order)
+                //dirección ya existe
+                //console.log('orden: '+obj.folio+' ya ingresada')
+                contador_ordenes_failed = contador_ordenes_failed + 1 
+
+            }
+        }
+
+        if( obj.region_cliente == "Valparaíso" && obj.estado == 'C'){
+            //console.log('Parseando orden: '+ obj.folio)
+            //console.log(obj)
+            var order = await parseOrder(cliente, obj, bodegas,items)
+
+            try{
+                postOrderPrueba = await postOrder(order,'05')
                 //console.log('orden: '+ obj.folio+' ingresada')
                 contador_ordenes_ok = contador_ordenes_ok + 1
             }
