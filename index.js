@@ -135,6 +135,10 @@ function postOrder(order, code_bodega){
     }); 
 }
 
+function limit (string = '', limit = 0) {  
+    return string.substring(0, limit)
+}
+
 function parseOrder(cliente, guiaDespacho, bodegas, items){
     return new Promise((resolve, reject) => {
         var items_guia = []
@@ -236,7 +240,7 @@ function parseOrder(cliente, guiaDespacho, bodegas, items){
                     {
                     "code": guiaDespacho.folio,
                     "alt_code": "996",
-                    "description": guiaDespacho.glosa_enc,
+                    "description": limit(guiaDespacho.glosa_enc,230),
                     "category": "Delivery",
                     "units_1": null,
                     "units_2": null,
@@ -337,23 +341,18 @@ async function installApp(){
             }
         })
         //console.log(obj.region_cliente +'-'+obj.comuna_cliente)
-
         //console.log(obj.region_cliente)
 
         if( (obj.region_cliente == "Metropolitana de Santiago" || obj.region_cliente == "O'Higgins") && obj.estado == 'C'){
-            //console.log('Parseando orden: '+ obj.folio)
-            //console.log(obj)
             var order = await parseOrder(cliente, obj, bodegas,items)
 
             try{
                 postOrderPrueba = await postOrder(order,'011')
-                //console.log('orden: '+ obj.folio+' ingresada')
                 contador_ordenes_ok = contador_ordenes_ok + 1
             }
             catch(e){
                 console.log(order)
                 //dirección ya existe
-                //console.log('orden: '+obj.folio+' ya ingresada')
                 contador_ordenes_failed = contador_ordenes_failed + 1 
 
             }
@@ -361,7 +360,6 @@ async function installApp(){
 
         if( obj.region_cliente == "Bío-Bío" && obj.estado == 'C'){
             //console.log('Parseando orden: '+ obj.folio)
-            //console.log(obj)
             var order = await parseOrder(cliente, obj, bodegas,items)
 
             try{
