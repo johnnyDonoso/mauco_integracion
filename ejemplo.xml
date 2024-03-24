@@ -1,0 +1,71 @@
+<Client>
+    <Additionals>
+        <Additional>
+            <Name>Excluir de envíos masivos</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Vendedor</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Cobrador</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Condición</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Ruta</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Cond Pago</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Teléfono 2</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Email 2</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Email 1</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>RUT</Name>
+            <Value>77685695-9</Value>
+        </Additional>
+        <Additional>
+            <Name>Contacto 2</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Nombre de fantasía</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Comuna</Name>
+            <Value />
+        </Additional>
+        <Additional>
+            <Name>Región</Name>
+            <Value />
+        </Additional>
+    </Additionals>
+    <Company_ID>238</Company_ID>
+    <Client_ID>4073927</Client_ID>
+    <Name>77685695-9</Name>
+    <Contact />
+    <Phone />
+    <Email />
+    <Address />
+    <Notes />
+    <CreditLimit xsi:nil="true" />
+    <Amount>69928.00</Amount>
+    <DueAmount>69928.00</DueAmount>
+</Client>

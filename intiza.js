@@ -1,9 +1,9 @@
 var request = require('request');
 const { environment } = require('./src/environments');
 const { Client } = require('pg');
-
 var tokenManager = ''
-  
+
+
 
 function Authorization(){
     return new Promise((resolve, reject) => {
@@ -40,7 +40,7 @@ function getToday(){
         month = '0'+month.toString();
     }
 
-    var currentDate = year.toString()+month.toString()+day.toString();
+    var currentDate = day.toString()+'-'+month.toString()+'-'+year.toString();
 
     return currentDate
 }
@@ -48,7 +48,7 @@ function getToday(){
 function getDocumentos(dateIni, dateFin, tipoDocumento){
     return new Promise((resolve, reject) => { //
         request.get(
-            environment.ApiManagerUrl+'/api/documents/'+environment.RutEmpresa+'/'+tipoDocumento+'/V/?df='+dateIni+'&dt='+dateFin+'&details=1',
+            environment.ApiManagerUrl+'/api/documents/'+environment.RutEmpresa+'/'+tipoDocumento+'/V/?df='+dateIni+'&dt='+dateFin+'&details=1&docnumreg='+folio,
             {
                 headers:{
                     "Authorization" : "Token "+tokenManager
@@ -66,6 +66,7 @@ function getDocumentos(dateIni, dateFin, tipoDocumento){
     });
 }
 
+//obtener clientes
 function getCliente(rutCliente){
     return new Promise((resolve, reject) => { //
         request.get(
@@ -90,7 +91,7 @@ function getCliente(rutCliente){
 function getTesoreriaReport(dateFin, TipoDocumento){
     return new Promise((resolve, reject) => { //
         request.get(
-            environment.ApiManagerUrl+'/api/tesoreria/analitico/'+environment.RutEmpresa+'/01-01-2000/15-03-2024/',
+            environment.ApiManagerUrl+'/api/tesoreria/analitico/'+environment.RutEmpresa+'/01-01-2000/'+dateFin+'/',
             {
                 json: true,
                 headers:{
@@ -103,7 +104,43 @@ function getTesoreriaReport(dateFin, TipoDocumento){
                     "monto": "",
                     "cta_ctble": "",
                     "rut": "",
-                    "tipodocumento": "FAVE",
+                    "tipodocumento": TipoDocumento,
+                    "vendedor": "",
+                    "comisionista": "",
+                    "cobrador": "",
+                    "centro_costo": "",
+                    "unidad_negocio": ""
+                  }
+            },
+            function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    resolve(body.data)
+                }
+                else{
+                    reject(null)
+                }
+            }
+        )
+    });
+}
+
+function getClienteIntiza(){
+    return new Promise((resolve, reject) => { //
+        request.get(
+            'https://service.intiza.com/soap/data.asmx',
+            {
+                json: true,
+                headers:{
+                    "Authorization" : "Token "+tokenManager
+                },
+                body:{
+                    "analitico_tipo": "",
+                    "fecha_filtro": "",
+                    "documento_incluir": "S",
+                    "monto": "",
+                    "cta_ctble": "",
+                    "rut": "",
+                    "tipodocumento": TipoDocumento,
                     "vendedor": "",
                     "comisionista": "",
                     "cobrador": "",
@@ -133,7 +170,7 @@ async function installApp(){
     const token = await Authorization() //Autenticación API Manager+
     tokenManager = token
 
-    var currentDate = '20230208'//getToday() //obtenemos fecha de hoy
+    var currentDate = getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
     console.log('---')
 
@@ -141,19 +178,46 @@ async function installApp(){
     //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
     //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
 
-    const informe_tesoreria = await getTesoreriaReport('17-03-2024','FAVE')
-    console.log(informe_tesoreria.length)
+    const informe_tesoreria = await getTesoreriaReport(currentDate,'FAVE')
+    //console.log(informe_tesoreria)
 
-    // informe_tesoreria.forEach(async (obj,index) =>{
-    //       console.log(obj)})
-        // if(obj.rut_cliente == null){
-        //     obj.rut_cliente = environment.RutEmpresa
-        // }
-        // //console.log(obj)
+    var ruts_cliente = []
+
+    informe_tesoreria.forEach(async (obj,index) =>{
+        if(obj.Cobrador != 'Cobranza Oficina'){
+            ruts_cliente.push(obj.RUT)
+
+            //console.log('Obteniendo Cliente: '+obj.rut_cliente)
+            var cliente = await getCliente(obj.RUT)
+
+            // var direcciones = cliente.direcciones
+
+            // direcciones.forEach(async (direccion, index) =>{
+            //     if(direccion.descripcion == obj.dire_cliente){
+            //         //console.log(direccion)
+            //         cliente.direccion_larga = direccion.direccion
+            //         cliente.comuna_cliente = direccion.comuna
+            //         cliente.region_cliente = direccion.region
+            //     }
+            // })
+
+            console.log(cliente)
+        }
+    })
+
+    // var ruts_unicos_clientes = new Set(ruts_cliente)
+
+    // console.log(ruts_unicos_clientes.size)
+
+    
+
+    // ruts_unicos_clientes.forEach(async (rut_cliente,index) =>{
+    //     console.log(rut_cliente)
+
         
-        // //console.log('Obteniendo Cliente: '+obj.rut_cliente)
-        // var cliente = await getCliente(obj.rut_cliente)
-        // //console.log(cliente)
+        
+    // })
+    
 
         // var contactos = cliente.contactos
         // contactos.forEach(async (contacto, index) =>{

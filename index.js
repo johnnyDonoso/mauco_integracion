@@ -234,7 +234,7 @@ function parseOrder(cliente, guiaDespacho, bodegas, items){
                 "delivered_contact_email": cliente.email_contacto_direccion,
                 "service_time": 15,
                 "sales_zone_code":"?",
-                "time_windows": ventana_horario,
+                //"time_windows": ventana_horario,
                 "tags": null,
                 "orders": [
                     {
