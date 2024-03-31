@@ -1,9 +1,40 @@
 var request = require('request');
 const { environment } = require('./src/environments');
 const { Client } = require('pg');
+const soap = require("soap");
+
 var tokenManager = ''
 
-
+const url = "https://service.intiza.com/soap/data.asmx?wsdl";
+ 
+function getClientsIntiza(page){
+    return new Promise((resolve, reject) => {
+        soap.createClient(url,
+            function (err, client) {
+                if (err) {
+                    console.error(err);
+                } else {
+                    // Make SOAP request using client object
+                    const args =
+                    {
+                        uid: environment.uid_intiza,
+                        pwd: environment.pass_intiza,
+                        company_id: environment.company_id,
+                        dateFrom: "20200101",
+                        page: page
+                    };
+                    client.GetClients(args,
+                        function (err, result) {
+                            if (err) {
+                                reject(err);
+                            } else {
+                                resolve(result);
+                            }
+                    });
+                }
+            });
+    })
+}
 
 function Authorization(){
     return new Promise((resolve, reject) => {
@@ -124,41 +155,6 @@ function getTesoreriaReport(dateFin, TipoDocumento){
     });
 }
 
-function getClienteIntiza(){
-    return new Promise((resolve, reject) => { //
-        request.get(
-            'https://service.intiza.com/soap/data.asmx',
-            {
-                json: true,
-                headers:{
-                    "Authorization" : "Token "+tokenManager
-                },
-                body:{
-                    "analitico_tipo": "",
-                    "fecha_filtro": "",
-                    "documento_incluir": "S",
-                    "monto": "",
-                    "cta_ctble": "",
-                    "rut": "",
-                    "tipodocumento": TipoDocumento,
-                    "vendedor": "",
-                    "comisionista": "",
-                    "cobrador": "",
-                    "centro_costo": "",
-                    "unidad_negocio": ""
-                  }
-            },
-            function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    resolve(body.data)
-                }
-                else{
-                    reject(null)
-                }
-            }
-        )
-    });
-}
 
 // var contador_ordenes_ok = 0
 // var contador_ordenes_failed = 0
@@ -171,37 +167,74 @@ async function installApp(){
     tokenManager = token
 
     var currentDate = getToday() //obtenemos fecha de hoy
-    console.log('Obteniendo ÓRDENES del día: '+currentDate)
+    console.log('Obteniendo Clientes Intiza: '+currentDate)
     console.log('---')
+
+    //get Clientes Intiza
+    var clientesIntiza = []
+
+    for (i = 1; i < 101; i++) {
+        const clientePage = await getClientsIntiza(i.toString())
+        if(clientePage.GetClientsResult != null){
+            clientePage.GetClientsResult.Client.forEach(element => {
+                clientesIntiza.push(element)
+            });
+            continue
+        }
+        else{
+            break
+        }
+    } 
+
+    console.log('Clientes from Intiza obtenidos')
+    console.log('---')
+
+    var clientesActivosIntiza = []
+
+    clientesIntiza.forEach(cliente => {
+        cliente.Additionals.Additional.forEach(additional => {
+            if(additional.Name == 'RUT'){
+                cliente.RUT = additional.Value
+            }
+            if(additional.Name == 'Condición'){
+                cliente.Condicion = additional.Value
+            }
+        });
+
+        if(cliente.Condicion == 'ACTIVO'){
+            clientesActivosIntiza.push(cliente)
+        }    
+    });
+
+    console.log(clientesActivosIntiza.length)
 
     //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
     //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
     //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
 
     const informe_tesoreria = await getTesoreriaReport(currentDate,'FAVE')
-    //console.log(informe_tesoreria)
+    // //console.log(informe_tesoreria)
 
-    var ruts_cliente = []
 
     informe_tesoreria.forEach(async (obj,index) =>{
         if(obj.Cobrador != 'Cobranza Oficina'){
-            ruts_cliente.push(obj.RUT)
-
             //console.log('Obteniendo Cliente: '+obj.rut_cliente)
-            var cliente = await getCliente(obj.RUT)
-
+            //var cliente = await getCliente(obj.RUT)
             // var direcciones = cliente.direcciones
+            //console.log(cliente)
+            var isClientAdded = false
+            clientesActivosIntiza.forEach(act_cliente => {
+                if(act_cliente.RUT == obj.RUT){
+                    console.log('cliente ya está ingresado')
+                    isClientAdded = true
+                }
+            });
 
-            // direcciones.forEach(async (direccion, index) =>{
-            //     if(direccion.descripcion == obj.dire_cliente){
-            //         //console.log(direccion)
-            //         cliente.direccion_larga = direccion.direccion
-            //         cliente.comuna_cliente = direccion.comuna
-            //         cliente.region_cliente = direccion.region
-            //     }
-            // })
+            if(isClientAdded == false)
+            {
+                console.log(obj)
+            }
 
-            console.log(cliente)
         }
     })
 

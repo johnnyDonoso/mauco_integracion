@@ -303,7 +303,7 @@ async function installApp(){
     tokenManager = token
     //console.log(tokenManager)
 
-    var currentDate = getToday() //obtenemos fecha de hoy
+    var currentDate = '20240328'//getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
     console.log('---')
 
@@ -343,7 +343,7 @@ async function installApp(){
         //console.log(obj.region_cliente +'-'+obj.comuna_cliente)
         //console.log(obj.region_cliente)
 
-        if( (obj.region_cliente == "Metropolitana de Santiago" || obj.region_cliente == "O'Higgins") && obj.estado == 'C'){
+        if( (obj.region_cliente == "Metropolitana de Santiago" || obj.region_cliente == "O'Higgins" || obj.region_cliente == "Maule" ) && obj.estado == 'C'){
             var order = await parseOrder(cliente, obj, bodegas,items)
 
             try{
