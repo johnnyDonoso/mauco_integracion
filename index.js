@@ -279,11 +279,11 @@ function getToday(){
     var month = date.getMonth() + 1;
     const year = date.getFullYear();
 
-    if (day <= 10){
+    if (day < 10){
         day = '0'+day.toString();
     }
 
-    if (month <= 10){
+    if (month < 10){
         month = '0'+month.toString();
     }
 
@@ -303,7 +303,7 @@ async function installApp(){
     tokenManager = token
     //console.log(tokenManager)
 
-    var currentDate = '20240328'//getToday() //obtenemos fecha de hoy
+    var currentDate = '20240409'//getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
     console.log('---')
 
