@@ -303,7 +303,7 @@ async function installApp(){
     tokenManager = token
     //console.log(tokenManager)
 
-    var currentDate = '20240409'//getToday() //obtenemos fecha de hoy
+    var currentDate = '20240417'//getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
     console.log('---')
 

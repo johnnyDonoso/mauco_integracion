@@ -42,14 +42,15 @@ function postClientToIntiza(cliente){
         soap.createClient(url_escritura,
             function (err, client) {
                 if (err) {
-                    console.error(err);
+                    console.log('error creando cliente')
+                    //console.error(err);
                 } else {
                     // Make SOAP request using client object
                     const args = cliente
                     client.SetClients(args,
                         function (err, result) {
                             if (err) {
-                                reject(err);
+                                reject(null);
                             } else {
                                 resolve(result);
                             }
@@ -142,6 +143,28 @@ function getCliente(rutCliente){
     });
 }
 
+//obtener todos los clientes
+function getClientes(){
+    return new Promise((resolve, reject) => { //
+        request.get(
+            environment.ApiManagerUrl+'/api/clients/'+environment.RutEmpresa+'/?direcciones=1&contacts=1',
+            {
+                headers:{
+                    "Authorization" : "Token "+tokenManager
+                }
+            },
+            function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    resolve(JSON.parse(body).data)
+                }
+                else{
+                    reject(null)
+                }
+            }
+        )
+    });
+}
+
 function getTesoreriaReport(dateFin, TipoDocumento){
     return new Promise((resolve, reject) => { //
         request.get(
@@ -186,10 +209,10 @@ function getUniqueValues(dataset){
     return(result);
 }
 
-function parseClienteToIntiza(cliente,factura){
+function parseClienteToIntiza(cliente){
     var nombre_completo = cliente.contactos[0].nombres+' '+cliente.contactos[0].appaterno
     var plazo_pago_real = ''
-    var vendedor_real = (factura.Vendedor.split(' ')[0][0] + factura.Vendedor.split(' ')[1]).toLowerCase()
+    //var vendedor_real = (factura.Vendedor.split(' ')[0][0] + factura.Vendedor.split(' ')[1]).toLowerCase()
 
     if(cliente.plazo_pagos == '1'){
         plazo_pago_real = '7 días'
@@ -224,11 +247,11 @@ function parseClienteToIntiza(cliente,factura){
                         },
                         {
                             Name: "Vendedor",
-                            Value: vendedor_real
+                            Value: ""//vendedor_real
                         },
                         {
                             Name: "Cobrador",
-                            Value: factura.Cobrador
+                            Value: ""//factura.Cobrador
                         },
                         {
                             Name: "Condición",
@@ -278,6 +301,10 @@ async function installApp(){
 
     var currentDate = getToday() //obtenemos fecha de hoy
 
+    console.log('Obteniendo clientes Manager ...')
+    const totalidadClientes = await getClientes();
+    console.log(totalidadClientes)
+
     //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
     //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
     //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
@@ -288,19 +315,45 @@ async function installApp(){
 
     console.log("Buscando clientes  ...")
 
+    var total_ruts = []
+
     informe_tesoreria.forEach(async (factura,index) =>{
-        if(index <= 3){
-            if(factura.Cobrador != 'Cobranza Oficina'){    
-                console.log('Obteniendo Cliente: '+factura.RUT)
-                var cliente = await getCliente(factura.RUT)
-                cliente_to_post = parseClienteToIntiza(cliente,factura)
-                
-                resultPost = await postClientToIntiza(cliente_to_post)
-                console.log(factura.RUT+": "+resultPost.SetClientsResult.Description)
-            }
+        if(factura.Cobrador != 'Cobranza Oficina'){    
+            //console.log('Obteniendo Cliente: '+factura.RUT)
+            // var cliente = await getCliente(factura.RUT)
+            // cliente_to_post = parseClienteToIntiza(cliente,factura)
+            // console.log(factura.RUT+": OK")
+            //console.log(factura.RUT+": Error")
+            //resultPost = await postClientToIntiza(cliente_to_post)
+            //console.log(factura.RUT+": "+resultPost.SetClientsResult.Description)
+            total_ruts.push(factura.RUT)
         }
-        
     })
+
+    // console.log('Antes de limpieza')
+    // console.log(total_ruts.length)
+
+    // const dataArr = new Set(total_ruts)
+    // let rutsLimpios = [...dataArr]
+
+    // console.log('Despues de limpieza')
+    // console.log(rutsLimpios.length)
+
+    // rutsLimpios.forEach(async (rutCliente,index) =>{
+    //     console.log('Obteniendo Cliente: '+rutCliente)
+
+    //     // try{
+    //     //     var cliente = await getCliente(rutCliente)
+    //     //     cliente_to_post = parseClienteToIntiza(cliente)
+    //     //     console.log(rutCliente+": OK")
+    //     // }
+    //     // catch{
+    //     //     console.log(rutCliente+": ERROR")
+    //     // }
+    //     //console.log(factura.RUT+": Error")
+    //     //resultPost = await postClientToIntiza(cliente_to_post)
+    //     //console.log(factura.RUT+": "+resultPost.SetClientsResult.Description)
+    // })
 }
 
 async function runApp(){
