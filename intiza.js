@@ -37,7 +37,7 @@ function getClientsIntiza(page){
     })
 }
 
-function postClientToIntiza(cliente){
+function postClientToIntiza(array_cliente){
     return new Promise((resolve, reject) => {
         soap.createClient(url_escritura,
             function (err, client) {
@@ -46,7 +46,15 @@ function postClientToIntiza(cliente){
                     //console.error(err);
                 } else {
                     // Make SOAP request using client object
-                    const args = cliente
+                    const args = 
+                    {   
+                        Uid: environment.uid_intiza,
+                        Pwd: environment.pass_intiza,
+                        Clients:
+                        {
+                            Client: array_cliente
+                        }
+                    }
                     client.SetClients(args,
                         function (err, result) {
                             if (err) {
@@ -209,10 +217,10 @@ function getUniqueValues(dataset){
     return(result);
 }
 
-function parseClienteToIntiza(cliente){
+function parseClienteToIntiza(cliente, factura){
     var nombre_completo = cliente.contactos[0].nombres+' '+cliente.contactos[0].appaterno
     var plazo_pago_real = ''
-    //var vendedor_real = (factura.Vendedor.split(' ')[0][0] + factura.Vendedor.split(' ')[1]).toLowerCase()
+    var vendedor_real = (factura.Vendedor.split(' ')[0][0] + factura.Vendedor.split(' ')[1]).toLowerCase()
 
     if(cliente.plazo_pagos == '1'){
         plazo_pago_real = '7 días'
@@ -223,76 +231,77 @@ function parseClienteToIntiza(cliente){
     if(cliente.plazo_pagos == '3'){
         plazo_pago_real = '30 días'
     }
+    if(cliente.plazo_pagos == '4'){
+        plazo_pago_real = '45 días'
+    }
+    if(cliente.plazo_pagos == '5'){
+        plazo_pago_real = '60 días'
+    }
+    if(cliente.plazo_pagos == '6'){
+        plazo_pago_real = '90 días'
+    }
     
-    const clienteToIntiza = 
-    {
-        Uid: environment.uid_intiza,
-        Pwd: environment.pass_intiza,
-        Clients: 
-        {
-            Client: {
-                Company_ID: environment.company_id,
-                Client_ID: cliente.num_cliente,
-                Name: cliente.razon_social,
-                Contact: nombre_completo,
-                Email: cliente.email_contacto,
-                Phone: cliente.telefono_contacto,
-                Address: cliente.direcciones[0].direccion,
-                Notes: "",
-                Additionals: {
-                    Additional: [
-                        {
-                            Name: "Excluir de envíos masivos",
-                            Value: ""
-                        },
-                        {
-                            Name: "Vendedor",
-                            Value: ""//vendedor_real
-                        },
-                        {
-                            Name: "Cobrador",
-                            Value: ""//factura.Cobrador
-                        },
-                        {
-                            Name: "Condición",
-                            Value: "ACTIVO"
-                        },
-                        {
-                            Name: "Ruta",
-                            Value: ""
-                        },
-                        {
-                            Name: "Cond Pago",
-                            Value: plazo_pago_real,
-                        },
-                        {
-                            Name: "RUT",
-                            Value: cliente.rut
-                        },
-                        {
-                            Name: "Nombre de fantasía",
-                            Value: cliente.nombre_fantasia
-                        },
-                        {
-                            Name: "Comuna",
-                            Value: cliente.direcciones[0].comuna
-                        },
-                        {
-                            Name: "Región",
-                            Value: cliente.direcciones[0].region
-                        }
-                    ]
+    const clienteToIntiza = {
+        Company_ID: environment.company_id,
+        Client_ID: cliente.num_cliente,
+        Name: cliente.razon_social,
+        Contact: nombre_completo,
+        Email: cliente.email_contacto,
+        Phone: cliente.telefono_contacto,
+        Address: cliente.direcciones[0].direccion,
+        Notes: "",
+        Additionals: {
+            Additional: [
+                {
+                    Name: "Excluir de envíos masivos",
+                    Value: ""
+                },
+                {
+                    Name: "Vendedor",
+                    Value: vendedor_real
+                },
+                {
+                    Name: "Cobrador",
+                    Value: factura.Cobrador
+                },
+                {
+                    Name: "Condición",
+                    Value: "ACTIVO"
+                },
+                {
+                    Name: "Ruta",
+                    Value: ""
+                },
+                {
+                    Name: "Cond Pago",
+                    Value: plazo_pago_real,
+                },
+                {
+                    Name: "RUT",
+                    Value: cliente.rut
+                },
+                {
+                    Name: "Nombre de fantasía",
+                    Value: cliente.nombre_fantasia
+                },
+                {
+                    Name: "Comuna",
+                    Value: cliente.direcciones[0].comuna
+                },
+                {
+                    Name: "Región",
+                    Value: cliente.direcciones[0].region
                 }
-            }
-        }
-    };
+            ]
+        }  
+    }
 
     return clienteToIntiza
 }
 
-
-// var contador_ordenes_ok = 0
-// var contador_ordenes_failed = 0
+var clientes_to_insert = []
+var clientes_to_insert2 = []
+var clientes_to_insert3 = []
 
 async function installApp(){
     console.log('Autorización Manager')
@@ -303,7 +312,7 @@ async function installApp(){
 
     console.log('Obteniendo clientes Manager ...')
     const totalidadClientes = await getClientes();
-    console.log(totalidadClientes)
+    console.log('Clientes desde Manager: OK')
 
     //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
     //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
@@ -313,47 +322,54 @@ async function installApp(){
     const informe_tesoreria = await getTesoreriaReport(currentDate,'FAVE')
     console.log("Informe obtenido")
 
-    console.log("Buscando clientes  ...")
+    console.log("Insertando clientes  ...")
 
-    var total_ruts = []
+    var cantidad_clientes = 0
 
-    informe_tesoreria.forEach(async (factura,index) =>{
+    await informe_tesoreria.forEach((factura,index) =>{
         if(factura.Cobrador != 'Cobranza Oficina'){    
-            //console.log('Obteniendo Cliente: '+factura.RUT)
-            // var cliente = await getCliente(factura.RUT)
-            // cliente_to_post = parseClienteToIntiza(cliente,factura)
-            // console.log(factura.RUT+": OK")
-            //console.log(factura.RUT+": Error")
-            //resultPost = await postClientToIntiza(cliente_to_post)
-            //console.log(factura.RUT+": "+resultPost.SetClientsResult.Description)
-            total_ruts.push(factura.RUT)
+            try{
+                var cliente_factura = null
+
+                totalidadClientes.forEach(cliente_antiguo =>{
+                    if(cliente_antiguo.rut == factura.RUT){
+                        cliente_factura = cliente_antiguo
+                    }
+                })
+                cliente_to_post = parseClienteToIntiza(cliente_factura,factura)
+
+                if(clientes_to_insert.length <= 999){
+                    clientes_to_insert.push(cliente_to_post)
+                }
+                if(clientes_to_insert.length == 1000 && clientes_to_insert2.length <= 999){
+                    clientes_to_insert2.push(cliente_to_post)
+                }
+                if(clientes_to_insert2.length == 1000 && clientes_to_insert3.length <= 999){
+                    clientes_to_insert3.push(cliente_to_post)
+                }
+                
+            }
+            catch{
+                console.log(factura.RUT+": ERROR")
+            }
+
+            cantidad_clientes += 1
         }
     })
 
-    // console.log('Antes de limpieza')
-    // console.log(total_ruts.length)
+    console.log('Cantidad clientes a insertar: '+cantidad_clientes)
 
-    // const dataArr = new Set(total_ruts)
-    // let rutsLimpios = [...dataArr]
+    console.log('batch clientes 1: '+clientes_to_insert.length)
+    console.log('batch clientes 2: '+clientes_to_insert2.length)
+    console.log('batch clientes 3: '+clientes_to_insert3.length)
 
-    // console.log('Despues de limpieza')
-    // console.log(rutsLimpios.length)
+    resultPost = await postClientToIntiza(clientes_to_insert)
+    resultPost2 = await postClientToIntiza(clientes_to_insert2)
+    resultPost3 = await postClientToIntiza(clientes_to_insert3)
 
-    // rutsLimpios.forEach(async (rutCliente,index) =>{
-    //     console.log('Obteniendo Cliente: '+rutCliente)
-
-    //     // try{
-    //     //     var cliente = await getCliente(rutCliente)
-    //     //     cliente_to_post = parseClienteToIntiza(cliente)
-    //     //     console.log(rutCliente+": OK")
-    //     // }
-    //     // catch{
-    //     //     console.log(rutCliente+": ERROR")
-    //     // }
-    //     //console.log(factura.RUT+": Error")
-    //     //resultPost = await postClientToIntiza(cliente_to_post)
-    //     //console.log(factura.RUT+": "+resultPost.SetClientsResult.Description)
-    // })
+    console.log('Recibidos: ['+resultPost.SetClientsResult.Received+'] , Procesados: '+resultPost.SetClientsResult.Processed+'] , Estado: ['+resultPost.SetClientsResult.Description+']')
+    console.log('Recibidos: ['+resultPost2.SetClientsResult.Received+'] , Procesados: '+resultPost2.SetClientsResult.Processed+'] , Estado: ['+resultPost2.SetClientsResult.Description+']')
+    console.log('Recibidos: ['+resultPost3.SetClientsResult.Received+'] , Procesados: '+resultPost3.SetClientsResult.Processed+'] , Estado: ['+resultPost3.SetClientsResult.Description+']')
 }
 
 async function runApp(){
@@ -361,42 +377,3 @@ async function runApp(){
 }
 
 runApp()
-
-
-// OBTENCIÓN DE CLIENTES DESDE INTIZA
-
-// console.log('Obteniendo Clientes Intiza: '+currentDate)
-// console.log('---')
-
-// //get Clientes Intiza
-// var clientesIntiza = []
-
-// for (i = 1; i < 101; i++) {
-//     const clientePage = await getClientsIntiza(i.toString())
-//     if(clientePage.GetClientsResult != null){
-//         clientePage.GetClientsResult.Client.forEach(element => {
-//             clientesIntiza.push(element)
-//         });
-//         continue
-//     }
-//     else{
-//         break
-//     }
-// } 
-
-// var clientesActivosIntiza = []
-
-// clientesIntiza.forEach(cliente => {
-//     cliente.Additionals.Additional.forEach(additional => {
-//         if(additional.Name == 'RUT'){
-//             cliente.RUT = additional.Value
-//         }
-//         if(additional.Name == 'Condición'){
-//             cliente.Condicion = additional.Value
-//         }
-//     });
-//     clientesActivosIntiza.push(cliente)
-// });
-
-// console.log('Clientes from Intiza obtenidos')
-// console.log('---')
