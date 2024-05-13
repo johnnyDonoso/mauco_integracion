@@ -184,10 +184,10 @@ function parseOrder(cliente, guiaDespacho, bodegas, items){
         var ventana_horario = []
 
         var nueva_ventana = 
-            {
-                "start": "07:00",
-                "end": "17:00"
-            }
+        {
+            "start": "07:00",
+            "end": "17:00"
+        }
             
         
         ventana_horario.push(nueva_ventana)
@@ -303,7 +303,7 @@ async function installApp(){
     tokenManager = token
     //console.log(tokenManager)
 
-    var currentDate = '20240417'//getToday() //obtenemos fecha de hoy
+    var currentDate = '20240510'//getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
     console.log('---')
 
