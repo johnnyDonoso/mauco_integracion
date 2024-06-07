@@ -8,6 +8,23 @@ var tokenManager = ''
 const url = "https://service.intiza.com/soap/data.asmx?wsdl";
 const url_escritura = "https://service.intiza.com/soap/integrate.asmx?wsdl";
 
+var clientes_to_insert = []
+var clientes_to_insert2 = []
+var clientes_to_insert3 = []
+var clientes_to_insert4 = []
+var clientes_to_insert5 = []
+var clientes_to_insert6 = []
+var clientes_to_insert7 = []
+var clientes_to_insert8 = []
+
+var totalidadClientes = []
+
+var invoice_to_insert = []
+var invoice_to_insert1 = []
+var invoice_to_insert2 = []
+
+var credito_to_insert = []
+
 function postClientToIntiza(array_cliente){
     return new Promise((resolve, reject) => {
         soap.createClient(url_escritura,
@@ -30,6 +47,68 @@ function postClientToIntiza(array_cliente){
                         function (err, result) {
                             if (err) {
                                 reject(null);
+                            } else {
+                                resolve(result);
+                            }
+                    });
+                }
+            });
+    })
+}
+
+function postInvoiceToIntiza(array_invoice){
+    return new Promise((resolve, reject) => {
+        soap.createClient(url_escritura,
+            function (err, client) {
+                if (err) {
+                    console.log('error creando cliente')
+                    //console.error(err);
+                } else {
+                    // Make SOAP request using client object
+                    const args = 
+                    {   
+                        Uid: environment.uid_intiza,
+                        Pwd: environment.pass_intiza,
+                        Invoices:
+                        {
+                            Invoice: array_invoice
+                        }
+                    }
+                    client.SetInvoices(args,
+                        function (err, result) {
+                            if (err) {
+                                reject(err);
+                            } else {
+                                resolve(result);
+                            }
+                    });
+                }
+            });
+    })
+}
+
+function postPaymentsToIntiza(array_invoice){
+    return new Promise((resolve, reject) => {
+        soap.createClient(url_escritura,
+            function (err, client) {
+                if (err) {
+                    console.log('error creando cliente')
+                    //console.error(err);
+                } else {
+                    // Make SOAP request using client object
+                    const args = 
+                    {   
+                        Uid: environment.uid_intiza,
+                        Pwd: environment.pass_intiza,
+                        Payments:
+                        {
+                            Payment: array_invoice
+                        }
+                    }
+                    client.SetPayments(args,
+                        function (err, result) {
+                            if (err) {
+                                reject(err);
                             } else {
                                 resolve(result);
                             }
@@ -134,7 +213,7 @@ function getTesoreriaReport(dateFin, TipoDocumento){
                 body:{
                     "analitico_tipo": "",
                     "fecha_filtro": "",
-                    "documento_incluir": "S",
+                    "documento_incluir": "N",
                     "monto": "",
                     "cta_ctble": "",
                     "rut": "",
@@ -289,33 +368,69 @@ function parseClienteToIntiza(cliente){
     return clienteToIntiza
 }
 
-var clientes_to_insert = []
-var clientes_to_insert2 = []
-var clientes_to_insert3 = []
-var clientes_to_insert4 = []
-var clientes_to_insert5 = []
-var clientes_to_insert6 = []
-var clientes_to_insert7 = []
+function parseFacturaToIntiza(factura,currentDate){
+    var nuevaEmittedDate = factura["Fecha emisión"].split('/')[2]+'-'+factura["Fecha emisión"].split('/')[1]+'-'+factura["Fecha emisión"].split('/')[0]
+    var nuevaDueDate = factura["Fecha vencimiento"].split('/')[2]+'-'+factura["Fecha vencimiento"].split('/')[1]+'-'+factura["Fecha vencimiento"].split('/')[0]
 
+    const facturaToIntiza = {
+        Company_ID: environment.company_id,
+        Client_ID: factura.id_cliente,
+        Invoice_ID: factura.folio,
+        EmittedDate: nuevaEmittedDate,
+        Amount: parseFloat(factura.Saldo.replace('.','')),
+        Currency_ID: "$",
+        ReferenceNumber: factura.folio,
+        DueDate: nuevaDueDate,
+        Additionals: {
+            Additional: [
+                {
+                    Name: "U. Negocio",
+                    Value: factura["U. Negocio"]
+                },
+                {
+                    Name: "Fecha Estado de Factura",
+                    Value: ""
+                },
+                {
+                    Name: "Clasificación",
+                    Value: factura["Clasificación"]
+                },
+                {
+                    Name: "Tipo de Disputa",
+                    Value: ""
+                }
+            ]
+        }  
+    }
 
-async function installApp(){
+    return facturaToIntiza
+}
+
+function parseCreditoToIntiza(factura,currentDate){
+    var nuevaEmittedDate = currentDate.split('-')[2]+'-'+currentDate.split('-')[1]+'-'+currentDate.split('-')[0]
+
+    const creditoToIntiza = {
+        Company_ID: environment.company_id,
+        Invoice_ID: 131629,//factura.Referencia.split(' - ')[1],
+        Payment_ID: factura.folio,
+        Amount: parseFloat(factura.Debe.replace('.','')),
+        Date: nuevaEmittedDate, //currentDate en formato nuevo
+        Notes: "",
+        Type: "",
+        Additionals: {}  
+    }
+
+    return creditoToIntiza
+}
+
+async function updateClientes(){
     console.log('Autorización Manager')
     const token = await Authorization() //Autenticación API Manager+
     tokenManager = token
 
-    var currentDate = getToday() //obtenemos fecha de hoy
-
     console.log('Obteniendo clientes Manager ...')
-    const totalidadClientes = await getClientes();
+    totalidadClientes = await getClientes();
     console.log('Clientes desde Manager: OK')
-
-    //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
-    //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
-    //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
-
-    console.log("Buscando informe de tesorería día: "+currentDate)
-    //const informe_tesoreria = await getTesoreriaReport(currentDate,'FAVE')
-    console.log("Informe obtenido")
 
     console.log("Insertando clientes  ...")
 
@@ -381,8 +496,122 @@ async function installApp(){
     console.log('Recibidos: ['+resultPost7.SetClientsResult.Received+'] , Procesados: '+resultPost7.SetClientsResult.Processed+'] , Estado: ['+resultPost7.SetClientsResult.Description+']')
 }
 
+async function updateFacturas(){
+    // console.log('Autorización Manager')
+    // const token = await Authorization() //Autenticación API Manager+
+    // tokenManager = token
+
+    var currentDate = getToday() //obtenemos fecha de hoy
+    //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
+    //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
+    //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
+
+    // console.log('Obteniendo clientes Manager ...')
+    // totalidadClientes = await getClientes();
+    // console.log('Clientes desde Manager: OK')
+
+    console.log("Buscando informe de tesorería día: "+currentDate)
+    const informe_tesoreria = await getTesoreriaReport(currentDate,'FAVE')
+    console.log("Informe obtenido")
+
+    var contador_facturas = 0
+
+    await informe_tesoreria.forEach((factura,index) =>{
+        if(factura.Cobrador != 'Cobranza Oficina'){
+            totalidadClientes.forEach((cliente)=>{
+                if(cliente.rut == factura.RUT){
+
+                    factura.id_cliente = cliente.num_cliente
+                    var invoice_to_post = parseFacturaToIntiza(factura,currentDate)
+
+                    if(invoice_to_post.EmittedDate == '' || invoice_to_post.EmittedDate == null){
+                        console.log(invoice_to_post)
+                    }
+
+                    if(invoice_to_insert.length <= 999){
+                        invoice_to_insert.push(invoice_to_post)
+                    }
+                    if(invoice_to_insert.length == 1000 && invoice_to_insert1.length <= 999){
+                        invoice_to_insert1.push(invoice_to_post)
+                    }
+                }
+            })
+            contador_facturas += 1
+        }
+    })
+
+    console.log('Cantidad facturas a insertar: '+contador_facturas)
+
+    console.log('batch clientes 1: '+invoice_to_insert.length)
+    console.log('batch clientes 2: '+invoice_to_insert1.length)
+
+    resultPost = await postInvoiceToIntiza(invoice_to_insert)
+    resultPost2 = await postInvoiceToIntiza(invoice_to_insert1)
+
+    console.log('Recibidos: ['+resultPost.SetInvoicesResult.Received+'] , Procesados: '+resultPost.SetInvoicesResult.Processed+'] , Estado: ['+resultPost.SetInvoicesResult.Description+']')
+    console.log('Recibidos: ['+resultPost2.SetInvoicesResult.Received+'] , Procesados: '+resultPost2.SetInvoicesResult.Processed+'] , Estado: ['+resultPost2.SetInvoicesResult.Description+']')
+}
+
+async function updateCredito(){
+    console.log('Autorización Manager')
+    const token = await Authorization() //Autenticación API Manager+
+    tokenManager = token
+
+    var currentDate = getToday() //obtenemos fecha de hoy
+    //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
+    //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
+    //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
+
+    // console.log('Obteniendo clientes Manager ...')
+    // totalidadClientes = await getClientes();
+    // console.log('Clientes desde Manager: OK')
+
+    console.log("Buscando informe de tesorería día: "+currentDate)
+    const informe_tesoreria = await getTesoreriaReport(currentDate,'NCVE')
+    console.log("Informe obtenido")
+
+    var contador_facturas = 0
+
+    await informe_tesoreria.forEach((factura,index) =>{
+        //console.log(factura)
+        //console.log('currentDate: '+currentDate)
+        if(index == 2){
+            totalidadClientes.forEach((cliente)=>{
+                if(cliente.rut == factura.RUT){
+    
+                    factura.id_cliente = cliente.num_cliente
+                    var creditoToPost = parseCreditoToIntiza(factura,currentDate)
+                    
+                    // console.log(factura)
+                    // console.log(creditoToPost)
+    
+                    if(credito_to_insert.length <= 999){
+                        credito_to_insert.push(creditoToPost)
+                    }
+                }
+            })
+            contador_facturas += 1
+        }
+        
+        
+        
+    })
+
+    console.log('Cantidad NCVE a insertar: '+contador_facturas)
+
+    console.log('batch NCVE: '+credito_to_insert.length)
+
+    resultPost = await postPaymentsToIntiza(credito_to_insert)
+
+    console.log(resultPost)
+
+    console.log('Recibidos: ['+resultPost.SetPaymentsResult.Received+'] , Procesados: '+resultPost.SetPaymentsResult.Processed+'] , Estado: ['+resultPost.SetPaymentsResult.Description+']')
+}
+
 async function runApp(){
-    await installApp()
+    await updateClientes()
+    await updateFacturas()
+    await updateCredito()
 }
 
 runApp()

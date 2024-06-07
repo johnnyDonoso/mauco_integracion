@@ -142,10 +142,10 @@ function limit (string = '', limit = 0) {
 function parseOrder(cliente, guiaDespacho, bodegas, items){
     return new Promise((resolve, reject) => {
         var items_guia = []
-
         var custom_1 = '' //codigo + nombre de bodega
-
         var peso_item = 0.0
+        var mail_vendedor = ''
+
 
         for (i = 0; i < guiaDespacho.detalles.length; i++) {
 
@@ -178,6 +178,22 @@ function parseOrder(cliente, guiaDespacho, bodegas, items){
             items_guia.push(new_item)
 
             //console.log(new_item)
+        }
+
+        if(guiaDespacho.usuario_vendedor == 'pgarcia'){
+            mail_vendedor = 'pedro.garcia@mauco.cl'
+        }
+        if(guiaDespacho.usuario_vendedor == 'imanrique'){
+            mail_vendedor = 'ivon.manrique@mauco.cl'
+        }
+        if(guiaDespacho.usuario_vendedor == 'cnavarrete'){
+            mail_vendedor = 'cristian.navarrete@mauco.cl'
+        }
+        if(guiaDespacho.usuario_vendedor == 'ntapia'){
+            mail_vendedor = 'nicole.tapia@mauco.cl'
+        }
+        if(guiaDespacho.usuario_vendedor == 'asalcedo'){
+            mail_vendedor = 'angel.salcedo@mauco.cl'
         }
 
         //ventana horaria
@@ -219,7 +235,7 @@ function parseOrder(cliente, guiaDespacho, bodegas, items){
                 "address_type": "",
                 "contact_name": cliente.nombre_contacto_direccion,
                 "contact_phone": cliente.telefono_contacto_direccion,
-                "contact_email": cliente.email_contacto_direccion,
+                "contact_email": cliente.email_contacto_direccion+','+mail_vendedor,
                 "additional_contact_name":"",
                 "additional_contact_phone":"",
                 "additional_contact_email": "",
@@ -296,14 +312,13 @@ var contador_ordenes_ok = 0
 var contador_ordenes_failed = 0
 
 async function installApp(){
-    
     //AGREGAR BODEGA DEL ITEM
     //console.log('Autorización Manager')
     const token = await Authorization() //Autenticación API Manager+
     tokenManager = token
     //console.log(tokenManager)
 
-    var currentDate = '20240510'//getToday() //obtenemos fecha de hoy
+    var currentDate = getToday() //obtenemos fecha de hoy
     console.log('Obteniendo ÓRDENES del día: '+currentDate)
     console.log('---')
 
