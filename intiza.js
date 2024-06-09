@@ -213,7 +213,7 @@ function getTesoreriaReport(dateFin, TipoDocumento){
                 body:{
                     "analitico_tipo": "",
                     "fecha_filtro": "",
-                    "documento_incluir": "N",
+                    "documento_incluir": "S",
                     "monto": "",
                     "cta_ctble": "",
                     "rut": "",
@@ -411,7 +411,7 @@ function parseCreditoToIntiza(factura,currentDate){
 
     const creditoToIntiza = {
         Company_ID: environment.company_id,
-        Invoice_ID: 131629,//factura.Referencia.split(' - ')[1],
+        Invoice_ID: factura.Referencia.split(' - ')[1],
         Payment_ID: factura.folio,
         Amount: parseFloat(factura.Debe.replace('.','')),
         Date: nuevaEmittedDate, //currentDate en formato nuevo
@@ -461,6 +461,9 @@ async function updateClientes(){
             if(clientes_to_insert6.length == 1000 && clientes_to_insert7.length <= 999){
                 clientes_to_insert7.push(cliente_to_post)
             }
+            if(clientes_to_insert7.length == 1000 && clientes_to_insert8.length <= 999){
+                clientes_to_insert8.push(cliente_to_post)
+            }
         }
         catch{
             console.log(cliente.rut+": ERROR")
@@ -478,6 +481,7 @@ async function updateClientes(){
     console.log('batch clientes 5: '+clientes_to_insert5.length)
     console.log('batch clientes 6: '+clientes_to_insert6.length)
     console.log('batch clientes 7: '+clientes_to_insert7.length)
+    console.log('batch clientes 8: '+clientes_to_insert8.length)
 
     resultPost = await postClientToIntiza(clientes_to_insert)
     resultPost2 = await postClientToIntiza(clientes_to_insert2)
@@ -486,6 +490,7 @@ async function updateClientes(){
     resultPost5 = await postClientToIntiza(clientes_to_insert5)
     resultPost6 = await postClientToIntiza(clientes_to_insert6)
     resultPost7 = await postClientToIntiza(clientes_to_insert7)
+    resultPost8 = await postClientToIntiza(clientes_to_insert8)
 
     console.log('Recibidos: ['+resultPost.SetClientsResult.Received+'] , Procesados: '+resultPost.SetClientsResult.Processed+'] , Estado: ['+resultPost.SetClientsResult.Description+']')
     console.log('Recibidos: ['+resultPost2.SetClientsResult.Received+'] , Procesados: '+resultPost2.SetClientsResult.Processed+'] , Estado: ['+resultPost2.SetClientsResult.Description+']')
@@ -494,12 +499,14 @@ async function updateClientes(){
     console.log('Recibidos: ['+resultPost5.SetClientsResult.Received+'] , Procesados: '+resultPost5.SetClientsResult.Processed+'] , Estado: ['+resultPost5.SetClientsResult.Description+']')
     console.log('Recibidos: ['+resultPost6.SetClientsResult.Received+'] , Procesados: '+resultPost6.SetClientsResult.Processed+'] , Estado: ['+resultPost6.SetClientsResult.Description+']')
     console.log('Recibidos: ['+resultPost7.SetClientsResult.Received+'] , Procesados: '+resultPost7.SetClientsResult.Processed+'] , Estado: ['+resultPost7.SetClientsResult.Description+']')
+    console.log('Recibidos: ['+resultPost8.SetClientsResult.Received+'] , Procesados: '+resultPost8.SetClientsResult.Processed+'] , Estado: ['+resultPost8.SetClientsResult.Description+']')
+
 }
 
 async function updateFacturas(){
-    // console.log('Autorización Manager')
-    // const token = await Authorization() //Autenticación API Manager+
-    // tokenManager = token
+    console.log('Autorización Manager')
+    const token = await Authorization() //Autenticación API Manager+
+    tokenManager = token
 
     var currentDate = getToday() //obtenemos fecha de hoy
     //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
@@ -567,43 +574,47 @@ async function updateCredito(){
     // console.log('Clientes desde Manager: OK')
 
     console.log("Buscando informe de tesorería día: "+currentDate)
-    const informe_tesoreria = await getTesoreriaReport(currentDate,'NCVE')
+    const informe_tesoreria = await getTesoreriaReport(currentDate,'NCVE') //notas de crédito
+    //const informe_tesoreria2 = await getTesoreriaReport(currentDate,'NDVE') //notas de débido
+
     console.log("Informe obtenido")
 
     var contador_facturas = 0
 
     await informe_tesoreria.forEach((factura,index) =>{
-        //console.log(factura)
-        //console.log('currentDate: '+currentDate)
-        if(index == 2){
-            totalidadClientes.forEach((cliente)=>{
-                if(cliente.rut == factura.RUT){
-    
-                    factura.id_cliente = cliente.num_cliente
-                    var creditoToPost = parseCreditoToIntiza(factura,currentDate)
-                    
-                    // console.log(factura)
-                    // console.log(creditoToPost)
-    
-                    if(credito_to_insert.length <= 999){
-                        credito_to_insert.push(creditoToPost)
-                    }
+        totalidadClientes.forEach((cliente)=>{
+            if(cliente.rut == factura.RUT){
+
+                factura.id_cliente = cliente.num_cliente
+                var creditoToPost = parseCreditoToIntiza(factura,currentDate)
+
+                if(credito_to_insert.length <= 999){
+                    credito_to_insert.push(creditoToPost)
                 }
-            })
-            contador_facturas += 1
-        }
-        
-        
-        
+            }
+        })
+        contador_facturas += 1   
     })
+    // await informe_tesoreria2.forEach((factura,index) =>{
+    //     totalidadClientes.forEach((cliente)=>{
+    //         if(cliente.rut == factura.RUT){
 
-    console.log('Cantidad NCVE a insertar: '+contador_facturas)
+    //             factura.id_cliente = cliente.num_cliente
+    //             var creditoToPost = parseCreditoToIntiza(factura,currentDate)
 
-    console.log('batch NCVE: '+credito_to_insert.length)
+    //             if(credito_to_insert.length <= 999){
+    //                 credito_to_insert.push(creditoToPost)
+    //             }
+    //         }
+    //     })
+    //     contador_facturas += 1   
+    // })
+
+    console.log('Cantidad de pagos a insertar: '+contador_facturas)
+
+    console.log('batch Pagos-1: '+credito_to_insert.length)
 
     resultPost = await postPaymentsToIntiza(credito_to_insert)
-
-    console.log(resultPost)
 
     console.log('Recibidos: ['+resultPost.SetPaymentsResult.Received+'] , Procesados: '+resultPost.SetPaymentsResult.Processed+'] , Estado: ['+resultPost.SetPaymentsResult.Description+']')
 }
