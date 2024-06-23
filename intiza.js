@@ -25,6 +25,16 @@ var invoice_to_insert2 = []
 
 var credito_to_insert = []
 
+var pago_to_insert = []
+var pago_to_insert2 = []
+var pago_to_insert3 = []
+var pago_to_insert4 = []
+var pago_to_insert5 = []
+var pago_to_insert6 = []
+var pago_to_insert7 = []
+var pago_to_insert8 = []
+var pago_to_insert9 = []
+
 function postClientToIntiza(array_cliente){
     return new Promise((resolve, reject) => {
         soap.createClient(url_escritura,
@@ -158,28 +168,30 @@ function getToday(){
     return currentDate
 }
 
-function getDocumentos(dateIni, dateFin, tipoDocumento){
-    return new Promise((resolve, reject) => { //
-        request.get(
-            environment.ApiManagerUrl+'/api/documents/'+environment.RutEmpresa+'/'+tipoDocumento+'/V/?df='+dateIni+'&dt='+dateFin+'&details=1&docnumreg='+folio,
-            {
-                headers:{
-                    "Authorization" : "Token "+tokenManager
-                }
-            },
-            function (error, response, body) {
-                if (!error && response.statusCode == 200) {
-                    resolve(JSON.parse(body).data)
-                }
-                else{
-                    reject(body)
-                }
-            }
-        )
-    });
+function getTodayMinusWeek(){
+    const date = new Date();
+
+    var day = date.getDate();
+    var month = date.getMonth() - 1;
+    const year = date.getFullYear();
+
+    if(day < 0){
+        day = 1
+    }
+
+    if (day < 10){
+        day = '0'+day.toString();
+    }
+
+    if (month < 10){
+        month = '0'+month.toString();
+    }
+
+    var currentDate = day.toString()+'-'+month.toString()+'-'+year.toString();
+
+    return currentDate
 }
 
-//obtener todos los clientes
 function getClientes(){
     return new Promise((resolve, reject) => { //
         request.get(
@@ -205,6 +217,7 @@ function getTesoreriaReport(dateFin, TipoDocumento){
     return new Promise((resolve, reject) => { //
         request.get(
             environment.ApiManagerUrl+'/api/tesoreria/analitico/'+environment.RutEmpresa+'/01-01-2000/'+dateFin+'/',
+            //environment.ApiManagerUrl+'/api/tesoreria/analitico/'+environment.RutEmpresa+'/15-06-2024/'+dateFin+'/',
             {
                 json: true,
                 headers:{
@@ -214,6 +227,43 @@ function getTesoreriaReport(dateFin, TipoDocumento){
                     "analitico_tipo": "",
                     "fecha_filtro": "",
                     "documento_incluir": "S",
+                    "monto": "",
+                    "cta_ctble": "",
+                    "rut": "",
+                    "tipodocumento": TipoDocumento,
+                    "vendedor": "",
+                    "comisionista": "",
+                    "cobrador": "",
+                    "centro_costo": "",
+                    "unidad_negocio": ""
+                  }
+            },
+            function (error, response, body) {
+                if (!error && response.statusCode == 200) {
+                    resolve(body.data)
+                }
+                else{
+                    reject(null)
+                }
+            }
+        )
+    });
+}
+
+function getTesoreriaReportSemana(dateIni, dateFin, TipoDocumento){
+    return new Promise((resolve, reject) => { //
+        request.get(
+            //environment.ApiManagerUrl+'/api/tesoreria/analitico/'+environment.RutEmpresa+'/'+dateIni+'/'+dateFin+'/',
+            environment.ApiManagerUrl+'/api/tesoreria/analitico/'+environment.RutEmpresa+'/01-01-2024/'+dateFin+'/',
+            {
+                json: true,
+                headers:{
+                    "Authorization" : "Token "+tokenManager
+                },
+                body:{
+                    "analitico_tipo": "",
+                    "fecha_filtro": "C",
+                    "documento_incluir": "C",
                     "monto": "",
                     "cta_ctble": "",
                     "rut": "",
@@ -377,7 +427,7 @@ function parseFacturaToIntiza(factura,currentDate){
         Client_ID: factura.id_cliente,
         Invoice_ID: factura.folio,
         EmittedDate: nuevaEmittedDate,
-        Amount: parseFloat(factura.Saldo.replace('.','')),
+        Amount: parseFloat(factura.Saldo.replaceAll('.','')),
         Currency_ID: "$",
         ReferenceNumber: factura.folio,
         DueDate: nuevaDueDate,
@@ -413,7 +463,24 @@ function parseCreditoToIntiza(factura,currentDate){
         Company_ID: environment.company_id,
         Invoice_ID: factura.Referencia.split(' - ')[1],
         Payment_ID: factura.folio,
-        Amount: parseFloat(factura.Debe.replace('.','')),
+        Amount: parseFloat(factura.Haber.replaceAll('.','')),
+        Date: nuevaEmittedDate, //currentDate en formato nuevo
+        Notes: "",
+        Type: "",
+        Additionals: {}  
+    }
+
+    return creditoToIntiza
+}
+
+function parseFactToToIntiza(factura,currentDate){
+    var nuevaEmittedDate = currentDate.split('-')[2]+'-'+currentDate.split('-')[1]+'-'+currentDate.split('-')[0]
+
+    const creditoToIntiza = {
+        Company_ID: environment.company_id,
+        Invoice_ID: factura.folio,
+        Payment_ID: factura['Cuenta contable']+factura.folio,
+        Amount: parseFloat(factura.Haber.replaceAll('.','')),
         Date: nuevaEmittedDate, //currentDate en formato nuevo
         Notes: "",
         Type: "",
@@ -509,13 +576,6 @@ async function updateFacturas(){
     tokenManager = token
 
     var currentDate = getToday() //obtenemos fecha de hoy
-    //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
-    //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
-    //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
-
-    // console.log('Obteniendo clientes Manager ...')
-    // totalidadClientes = await getClientes();
-    // console.log('Clientes desde Manager: OK')
 
     console.log("Buscando informe de tesorería día: "+currentDate)
     const informe_tesoreria = await getTesoreriaReport(currentDate,'FAVE')
@@ -565,13 +625,6 @@ async function updateCredito(){
     tokenManager = token
 
     var currentDate = getToday() //obtenemos fecha de hoy
-    //const facturas = await getDocumentos(currentDate, currentDate,'FAVE') //obtenemos ordenes de despacho con la fecha de hoy
-    //const notas_credito = await getDocumentos(currentDate, currentDate,'NCVE') //obtenemos ordenes de despacho con la fecha de hoy
-    //const notas_debito = await getDocumentos(currentDate, currentDate,'NDVE') //obtenemos ordenes de despacho con la fecha de hoy
-
-    // console.log('Obteniendo clientes Manager ...')
-    // totalidadClientes = await getClientes();
-    // console.log('Clientes desde Manager: OK')
 
     console.log("Buscando informe de tesorería día: "+currentDate)
     const informe_tesoreria = await getTesoreriaReport(currentDate,'NCVE') //notas de crédito
@@ -595,20 +648,6 @@ async function updateCredito(){
         })
         contador_facturas += 1   
     })
-    // await informe_tesoreria2.forEach((factura,index) =>{
-    //     totalidadClientes.forEach((cliente)=>{
-    //         if(cliente.rut == factura.RUT){
-
-    //             factura.id_cliente = cliente.num_cliente
-    //             var creditoToPost = parseCreditoToIntiza(factura,currentDate)
-
-    //             if(credito_to_insert.length <= 999){
-    //                 credito_to_insert.push(creditoToPost)
-    //             }
-    //         }
-    //     })
-    //     contador_facturas += 1   
-    // })
 
     console.log('Cantidad de pagos a insertar: '+contador_facturas)
 
@@ -616,13 +655,106 @@ async function updateCredito(){
 
     resultPost = await postPaymentsToIntiza(credito_to_insert)
 
-    console.log('Recibidos: ['+resultPost.SetPaymentsResult.Received+'] , Procesados: '+resultPost.SetPaymentsResult.Processed+'] , Estado: ['+resultPost.SetPaymentsResult.Description+']')
+    console.log('Recibidos: ['+resultPost.SetPaymentsResult.Received+'] , Procesados: '+resultPost.SetPaymentsResult.Processed+']')// , Estado: ['+resultPost.SetPaymentsResult.Description+']')
+}
+
+async function updateFacturasPagadasManual(){
+    console.log('Autorización Manager')
+    const token = await Authorization() //Autenticación API Manager+
+    tokenManager = token
+
+    var weekDay = getTodayMinusWeek()
+    var currentDate = getToday() //obtenemos fecha de hoy
+
+    // console.log('Obteniendo clientes Manager ...')
+    // totalidadClientes = await getClientes();
+    // console.log('Clientes desde Manager: OK')
+
+    console.log("Buscando informe de tesorería día: "+currentDate)
+    const informe_tesoreria = await getTesoreriaReportSemana(weekDay, currentDate,'FAVE') //notas de crédito
+
+    console.log("Informe obtenido")
+
+    var contador_facturas = 0
+
+    await informe_tesoreria.forEach((factura,index) =>{
+        totalidadClientes.forEach((cliente)=>{
+            if(cliente.rut == factura.RUT){
+
+                factura.id_cliente = cliente.num_cliente
+                var creditoToPost = parseFactToToIntiza(factura,currentDate)
+
+                if(pago_to_insert.length <= 999){
+                    pago_to_insert.push(creditoToPost)
+                }
+                if(pago_to_insert.length == 1000 && pago_to_insert2.length <= 999){
+                    pago_to_insert2.push(creditoToPost)
+                }
+                if(pago_to_insert2.length == 1000 && pago_to_insert3.length <= 999){
+                    pago_to_insert3.push(creditoToPost)
+                }
+                if(pago_to_insert3.length == 1000 && pago_to_insert4.length <= 999){
+                    pago_to_insert4.push(creditoToPost)
+                }
+                if(pago_to_insert4.length == 1000 && pago_to_insert5.length <= 999){
+                    pago_to_insert5.push(creditoToPost)
+                }
+                if(pago_to_insert5.length == 1000 && pago_to_insert6.length <= 999){
+                    pago_to_insert6.push(creditoToPost)
+                }
+                if(pago_to_insert6.length == 1000 && pago_to_insert7.length <= 999){
+                    pago_to_insert7.push(creditoToPost)
+                }
+                if(pago_to_insert7.length == 1000 && pago_to_insert8.length <= 999){
+                    pago_to_insert8.push(creditoToPost)
+                }
+                if(pago_to_insert8.length == 1000 && pago_to_insert9.length <= 999){
+                    pago_to_insert9.push(creditoToPost)
+                }
+            }
+        })
+        contador_facturas += 1   
+    })
+
+    console.log('Cantidad de pagos Manuales a insertar: '+contador_facturas)
+
+    console.log('batch Pagos-1: '+pago_to_insert.length)
+    console.log('batch Pagos-2: '+pago_to_insert2.length)
+    console.log('batch Pagos-3: '+pago_to_insert3.length)
+    console.log('batch Pagos-4: '+pago_to_insert4.length)
+    console.log('batch Pagos-5: '+pago_to_insert5.length)
+    console.log('batch Pagos-6: '+pago_to_insert6.length)
+    console.log('batch Pagos-7: '+pago_to_insert7.length)
+    console.log('batch Pagos-8: '+pago_to_insert8.length)
+    console.log('batch Pagos-9: '+pago_to_insert9.length)
+
+    resultPost = await postPaymentsToIntiza(pago_to_insert)
+    resultPost2 = await postPaymentsToIntiza(pago_to_insert2)
+    resultPost3 = await postPaymentsToIntiza(pago_to_insert3)
+    resultPost4 = await postPaymentsToIntiza(pago_to_insert4)
+    resultPost5 = await postPaymentsToIntiza(pago_to_insert5)
+    resultPost6 = await postPaymentsToIntiza(pago_to_insert6)
+    resultPost7 = await postPaymentsToIntiza(pago_to_insert7)
+    resultPost8 = await postPaymentsToIntiza(pago_to_insert8)
+    resultPost9 = await postPaymentsToIntiza(pago_to_insert9)
+
+    console.log('1.- Recibidos: ['+resultPost.SetPaymentsResult.Received+'] , Procesados: '+resultPost.SetPaymentsResult.Processed+']')  // , Estado: ['+resultPost.SetPaymentsResult.Description+']')
+    console.log('2.- Recibidos: ['+resultPost2.SetPaymentsResult.Received+'] , Procesados: '+resultPost2.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost2.SetPaymentsResult.Description+']')
+    console.log('3.- Recibidos: ['+resultPost3.SetPaymentsResult.Received+'] , Procesados: '+resultPost3.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost3.SetPaymentsResult.Description+']')
+    console.log('4.- Recibidos: ['+resultPost4.SetPaymentsResult.Received+'] , Procesados: '+resultPost4.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost4.SetPaymentsResult.Description+']')
+    console.log('5.- Recibidos: ['+resultPost5.SetPaymentsResult.Received+'] , Procesados: '+resultPost5.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost5.SetPaymentsResult.Description+']')
+    console.log('6.- Recibidos: ['+resultPost6.SetPaymentsResult.Received+'] , Procesados: '+resultPost6.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost6.SetPaymentsResult.Description+']')
+    console.log('7.- Recibidos: ['+resultPost7.SetPaymentsResult.Received+'] , Procesados: '+resultPost7.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost7.SetPaymentsResult.Description+']')
+    console.log('8.- Recibidos: ['+resultPost8.SetPaymentsResult.Received+'] , Procesados: '+resultPost8.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost8.SetPaymentsResult.Description+']')
+    console.log('9.- Recibidos: ['+resultPost9.SetPaymentsResult.Received+'] , Procesados: '+resultPost9.SetPaymentsResult.Processed+']') //, Estado: ['+resultPost9.SetPaymentsResult.Description+']')
+
 }
 
 async function runApp(){
     await updateClientes()
     await updateFacturas()
     await updateCredito()
+    await updateFacturasPagadasManual()
 }
 
 runApp()
