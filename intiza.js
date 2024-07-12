@@ -326,22 +326,25 @@ function parseClienteToIntiza(cliente){
         })
     }
 
-    if(cliente.plazo_pagos == '1'){
+    if(cliente.vencimiento_pagos == '1'){
         plazo_pago_real = '7 días'
     }
-    if(cliente.plazo_pagos == '2'){
+    if(cliente.vencimiento_pagos == '2'){
         plazo_pago_real = '15 días'
     }
-    if(cliente.plazo_pagos == '3'){
+    if(cliente.vencimiento_pagos == '3'){
         plazo_pago_real = '30 días'
     }
-    if(cliente.plazo_pagos == '4'){
+    if(cliente.vencimiento_pagos == '4'){
         plazo_pago_real = '45 días'
     }
-    if(cliente.plazo_pagos == '5'){
+    if(cliente.vencimiento_pagos == '5'){
         plazo_pago_real = '60 días'
     }
-    if(cliente.plazo_pagos == '6'){
+    if(cliente.vencimiento_pagos == '6'){
+        plazo_pago_real = '0 días'
+    }
+    if(cliente.vencimiento_pagos == '7'){
         plazo_pago_real = '90 días'
     }
 
@@ -410,6 +413,11 @@ function parseClienteToIntiza(cliente){
                 {
                     Name: "Teléfono 2",
                     Value: telefono_cobranza2
+                }
+                ,
+                {
+                    Name: "Email 1",
+                    Value: email_cobranza
                 }
             ]
         }  
